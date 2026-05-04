@@ -415,6 +415,15 @@ let currentUser=null,editingMemberId=null,lastReportDate=null,lastReportTx=[];
 let notifications={}; // {userId: [{id,msg,tab,refId,read,time}]}
 let pendingOtp=null,resetTargetUserId=null;
 let appsLoading=false;
+let offlineQueue=[];
+let membersView='table';
+let barangays={
+  'Hinundayan':['Brgy A','Brgy B','Brgy C','Brgy D','Brgy E','Brgy F','Brgy G','Brgy H'],
+  'Saint Bernard':['Brgy A','Brgy B','Brgy C','Brgy D','Brgy E','Brgy F','Brgy G','Brgy H'],
+  'San Juan':['Brgy A','Brgy B','Brgy C','Brgy D','Brgy E','Brgy F','Brgy G','Brgy H'],
+  'Hinunangan':['Brgy A','Brgy B','Brgy C','Brgy D','Brgy E','Brgy F','Brgy G','Brgy H'],
+};
+let barangayLocks={};
 
 let settings={
   coopName:'Southern Leyte Cooperative',
