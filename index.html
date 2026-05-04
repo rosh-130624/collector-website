@@ -1180,38 +1180,111 @@ function exportAppsExcel(){
 
 // ─── MEMBERS ───
 function renderMembers(showRecycleBin=false){
-  const vm=getVisibleMembers();
   const el=document.getElementById('tab-members');
   const recycleBinCount=deletedMembers.length;
   el.innerHTML=`
+  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+    <input type="text" placeholder="Search name or Member ID..." id="msq" oninput="renderMemberList(${showRecycleBin})" style="flex:1;min-width:140px">
+    <select id="maf" onchange="renderMemberBrgyFilter();renderMemberList(${showRecycleBin})" style="width:130px">
+      <option value="">All Areas</option>${AREAS.map(a=>`<option value="${a}">${a}</option>`).join('')}
+    </select>
+    <select id="mbf" onchange="renderMemberList(${showRecycleBin})" style="width:130px"><option value="">All Barangays</option></select>
+    <div class="view-toggle">
+      <button class="vt-btn ${membersView==='table'?'active':''}" onclick="membersView='table';renderMembers(${showRecycleBin})">☰ Table</button>
+      <button class="vt-btn ${membersView==='card'?'active':''}" onclick="membersView='card';renderMembers(${showRecycleBin})">⊞ Cards</button>
+    </div>
+  </div>
   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-    <input type="text" placeholder="Search name or ID..." id="msq" oninput="renderMembers(${showRecycleBin})" style="flex:1;min-width:140px">
-    ${isSupOrAbove()?`<select id="maf" onchange="renderMembers(${showRecycleBin})" style="width:140px"><option value="">All Areas</option>${AREAS.map(a=>`<option value="${a}">${a}</option>`).join('')}</select>`:''}
     <button class="btn green" onclick="showWalkIn()">+ Walk-in</button>
     <button class="btn primary" onclick="showAddMemberTab()">+ Add Member</button>
     ${isSupOrAbove()?`<button class="btn ${showRecycleBin?'danger':'warn'}" onclick="renderMembers(${!showRecycleBin})">${showRecycleBin?'Hide Recycle Bin':recycleBinCount>0?'🗑 Recycle Bin ('+recycleBinCount+')':'🗑 Recycle Bin'}</button>`:''}
   </div>
   ${showRecycleBin&&isSupOrAbove()?renderRecycleBin():''}
-  <div style="overflow-x:auto"><div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Member</th><th>Source</th><th>Area</th><th>Schedule</th><th>Due/Period</th><th>Loan Balance</th><th>Today</th><th></th></tr></thead><tbody id="mtbody"></tbody></table></div></div>`;
-  const q=(document.getElementById('msq')||{value:''}).value.toLowerCase();
-  const fa=(document.getElementById('maf')||{value:''}).value;
-  const filtered=vm.filter(m=>(m.name.toLowerCase().includes(q)||m.id.toLowerCase().includes(q))&&(!fa||m.area===fa));
-  document.getElementById('mtbody').innerHTML=filtered.length?filtered.map(m=>{
-    const paid=paidToday(m.id);const st=m.type==='savings'?'savings':paid>=m.dueAmount?'paid':paid>0?'partial':'unpaid';
-    return`<tr><td><div class="mc"><div class="av">${ini(m.name)}</div><div><div style="font-weight:600">${m.name}</div><div style="font-size:10px;color:#888">${m.id} · ${m.contact}</div></div></div></td>
-    <td><span class="badge ${m.source==='walkin'?'walkin':'other'}">${m.source==='walkin'?'Walk-in':'Online'}</span></td>
-    <td><span class="area-pill">${m.area}</span></td><td><span class="badge other">${m.sched}</span></td>
-    <td>${fmt(m.dueAmount)}</td><td>${m.loanBal>0?fmt(m.loanBal):'—'}</td>
-    <td><span class="badge ${st}">${st}</span></td>
-    <td style="white-space:nowrap;display:flex;gap:3px;flex-wrap:wrap">
-      <button class="btn sm" onclick="showEditMember('${m.id}')">Edit</button>
-      <button class="btn sm info" onclick="showTransferRequest('${m.id}')">Transfer</button>
-      ${isSupOrAbove()?`<button class="btn sm danger" onclick="deleteMember('${m.id}')">Delete</button>`:''}
-    </td></tr>`;
-  }).join(''):`<tr><td colspan="8" class="empty">No members found.</td></tr>`;
+  <div id="member-list-container"></div>`;
+  renderMemberBrgyFilter();
+  renderMemberList(showRecycleBin);
 }
 
-function renderRecycleBin(){
+function renderMemberBrgyFilter(){
+  const area=(document.getElementById('maf')||{value:''}).value;
+  const sel=document.getElementById('mbf');if(!sel)return;
+  sel.innerHTML='<option value="">All Barangays</option>'+((barangays[area]||[]).map(b=>`<option value="${b}">${b}</option>`).join(''));
+}
+
+function renderMemberList(showRecycleBin=false){
+  const vm=getVisibleMembers();
+  const q=(document.getElementById('msq')||{value:''}).value.toLowerCase();
+  const fa=(document.getElementById('maf')||{value:''}).value;
+  const fb=(document.getElementById('mbf')||{value:''}).value;
+  const filtered=vm.filter(m=>(m.name.toLowerCase().includes(q)||m.id.toLowerCase().includes(q))&&(!fa||m.area===fa)&&(!fb||m.barangay===fb));
+  const container=document.getElementById('member-list-container');if(!container)return;
+  if(membersView==='card'){
+    container.innerHTML=filtered.length?`<div class="member-card-grid">${filtered.map(m=>renderMemberCard(m)).join('')}</div>`:'<div class="empty">No members found.</div>';
+  } else {
+    container.innerHTML=filtered.length?`<div style="overflow-x:auto"><div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>Member</th><th>Area / Brgy</th><th>Source</th><th>Schedule</th><th>Due</th><th>Balance</th><th>Streak</th><th>Today</th><th>Re-loan</th><th></th></tr></thead><tbody>${filtered.map(m=>renderMemberRow(m)).join('')}</tbody></table></div></div>`:'<div class="empty">No members found.</div>';
+  }
+}
+
+function renderMemberCard(m){
+  const paid=paidToday(m.id);
+  const st=m.type==='savings'?'savings':paid>=m.dueAmount?'paid':paid>0?'partial':'unpaid';
+  const {streak,missed}=getPaymentStreak(m.id);
+  const reloanPct=getReloanPct(m);
+  const isEligible=reloanPct>=80&&m.loanTotal>0;
+  const avBg=st==='paid'?'var(--gp)':st==='unpaid'?'#fdecea':'#fff8e8';
+  const avColor=st==='paid'?'var(--green)':st==='unpaid'?'var(--red)':'var(--amber)';
+  const streakBadge=streak>=3?`<span class="streak-badge fire">🔥 ${streak} streak</span>`:missed>=3?`<span class="streak-badge warning">⚠️ ${missed} missed</span>`:'';
+  return`<div class="member-card">
+    <div class="member-card-header">
+      <div class="member-card-av" style="background:${avBg};color:${avColor}">${ini(m.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.name}</div>
+        <div style="font-size:10px;color:#888">${m.id} · ${m.contact}</div>
+        <div style="margin-top:3px"><span class="area-pill">${m.area}</span>${m.barangay?` <span style="font-size:10px;color:#aaa">${m.barangay}</span>`:''}</div>
+      </div>
+      <span class="badge ${st}" style="flex-shrink:0">${st}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:6px">
+      <span>Due: <b style="color:var(--text)">${fmt(m.dueAmount)}</b></span>
+      <span>Balance: <b style="color:var(--text)">${m.loanBal>0?fmt(m.loanBal):'—'}</b></span>
+    </div>
+    ${m.loanTotal>0?`<div class="member-card-mini-bar"><div class="member-card-mini-fill" style="width:${reloanPct}%"></div></div><div style="font-size:10px;color:#aaa;margin-bottom:6px">${reloanPct}% paid</div>`:''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      ${streakBadge}${isEligible?`<span class="reloan-badge">✅ Re-loan Eligible</span>`:''}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn sm primary" onclick="quickCollect('${m.id}')">💰 Collect</button>
+      <button class="btn sm" onclick="showMemberProfile('${m.id}')">👤 Profile</button>
+      <button class="btn sm info" onclick="showTransferRequest('${m.id}')">Transfer</button>
+      ${isSupOrAbove()?`<button class="btn sm danger" onclick="deleteMember('${m.id}')">Delete</button>`:''}
+    </div>
+  </div>`;
+}
+
+function renderMemberRow(m){
+  const paid=paidToday(m.id);
+  const st=m.type==='savings'?'savings':paid>=m.dueAmount?'paid':paid>0?'partial':'unpaid';
+  const {streak,missed}=getPaymentStreak(m.id);
+  const reloanPct=getReloanPct(m);
+  const isEligible=reloanPct>=80&&m.loanTotal>0;
+  const streakBadge=streak>=3?`<span class="streak-badge fire">🔥 ${streak}</span>`:missed>=3?`<span class="streak-badge warning">⚠️ ${missed}</span>`:`<span style="font-size:10px;color:#ccc">—</span>`;
+  return`<tr>
+    <td><div class="mc"><div class="av">${ini(m.name)}</div><div><div style="font-weight:600">${m.name}</div><div style="font-size:10px;color:#888">${m.id} · ${m.contact}</div></div></div></td>
+    <td><span class="area-pill">${m.area}</span>${m.barangay?`<div style="font-size:10px;color:#aaa;margin-top:2px">${m.barangay}</div>`:''}</td>
+    <td><span class="badge ${m.source==='walkin'?'walkin':'other'}">${m.source==='walkin'?'Walk-in':'Online'}</span></td>
+    <td><span class="badge other">${m.sched}</span></td>
+    <td>${fmt(m.dueAmount)}</td>
+    <td>${m.loanBal>0?fmt(m.loanBal):'—'}</td>
+    <td>${streakBadge}</td>
+    <td><span class="badge ${st}">${st}</span></td>
+    <td>${isEligible?'<span class="reloan-badge">✅ Eligible</span>':reloanPct>0?`<span style="font-size:10px;color:#aaa">${reloanPct}%</span>`:'—'}</td>
+    <td style="display:flex;gap:3px;flex-wrap:wrap">
+      <button class="btn sm" onclick="showMemberProfile('${m.id}')">Profile</button>
+      <button class="btn sm info" onclick="showTransferRequest('${m.id}')">Transfer</button>
+      ${isSupOrAbove()?`<button class="btn sm danger" onclick="deleteMember('${m.id}')">Delete</button>`:''}
+    </td>
+  </tr>`;
+}
   if(!deletedMembers.length)return`<div class="card" style="margin-bottom:14px;background:#fdecea;border:1.5px solid #f5b7b1"><div style="font-size:13px;color:var(--red);text-align:center;padding:12px">Recycle bin is empty.</div></div>`;
   const now=Date.now();const sevenDays=7*24*60*60*1000;
   return`<div class="card" style="margin-bottom:14px;border:1.5px solid #f5b7b1;background:#fdecea">
