@@ -442,6 +442,48 @@ const genId=()=>'TX'+String(txCounter++).padStart(4,'0');
 const genAppId=()=>'APP-'+String(appCounter++).padStart(4,'0');
 const genTrId=()=>'TR-'+String(trCounter++).padStart(4,'0');
 
+function getPaymentStreak(mId){
+  const m=members.find(x=>x.id===mId);
+  if(!m||m.type==='savings')return{streak:0,missed:0};
+  const periodDays=m.sched==='daily'?1:m.sched==='weekly'?7:m.sched==='twice-a-month'?14:30;
+  let streak=0,missed=0;
+  for(let i=1;i<=20;i++){
+    const end=new Date(todayDate);end.setDate(end.getDate()-(i-1)*periodDays);
+    const start=new Date(end);start.setDate(start.getDate()-periodDays+1);
+    const startStr=start.toISOString().split('T')[0];
+    const endStr=end.toISOString().split('T')[0];
+    const paid=transactions.filter(t=>t.memberId===mId&&t.date>=startStr&&t.date<=endStr&&(t.type==='loan'||t.type==='penalty')).reduce((s,t)=>s+Number(t.amount),0);
+    if(paid>=m.dueAmount){if(missed===0)streak++;else break;}
+    else{missed++;if(streak>0||missed>=3)break;}
+  }
+  return{streak,missed};
+}
+
+function getReloanPct(m){
+  if(!m.loanTotal||m.type==='savings')return 0;
+  return Math.min(100,Math.round(((m.loanTotal-m.loanBal)/m.loanTotal)*100));
+}
+
+function checkOnlineStatus(){
+  const banner=document.getElementById('offline-banner');if(!banner)return;
+  if(navigator.onLine){banner.classList.remove('show');syncOfflineQueue();}
+  else{const q=offlineQueue.length;document.getElementById('offline-msg').textContent=`You are offline — ${q} payment${q!==1?'s':''} pending sync`;banner.classList.add('show');}
+}
+
+async function syncOfflineQueue(){
+  if(!navigator.onLine||!offlineQueue.length)return;
+  const toSync=[...offlineQueue];offlineQueue=[];saveData();
+  let synced=0;
+  for(const tx of toSync){
+    try{await fetch('https://patriciatelen14.app.n8n.cloud/webhook/sync-transaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(tx)});synced++;}
+    catch(e){offlineQueue.push(tx);}
+  }
+  saveData();checkOnlineStatus();
+  if(synced>0)showToast(`✅ ${synced} payment${synced>1?'s':''} synced to Google Sheets!`);
+}
+
+window.addEventListener('online',()=>{checkOnlineStatus();showToast('Back online! Syncing payments...');});
+window.addEventListener('offline',()=>{checkOnlineStatus();showToast('You are offline. Payments saved locally.');});  
 function showToast(msg,dur=2500){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
 
 function saveData(){
