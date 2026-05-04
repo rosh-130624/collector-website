@@ -1015,7 +1015,7 @@ const N8N_STATUS='https://patriciatelen14.app.n8n.cloud/webhook/update-applicati
 
 async function syncMemberToSheets(member,action='add'){
   try{
-    await fetch(N8N_SYNC_MEMBER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    await fetch(N8N_SYNC_MEMBER,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({
       action,member_id:member.id,name:member.name,contact:member.contact,address:member.address,
       area:member.area,assigned_officer:users.find(u=>u.id===member.assignedTo)?.name||'',
       account_type:member.type,schedule:member.sched,due_amount:member.dueAmount,
@@ -1773,7 +1773,7 @@ function recordPayment(){
   saveData();
   const txPayload={...tx,member_id:m.id,loan_balance:m.loanBal,synced_at:new Date().toISOString()};
   if(navigator.onLine){
-    fetch('https://patriciatelen14.app.n8n.cloud/webhook/sync-transaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(txPayload)})
+   fetch('https://patriciatelen14.app.n8n.cloud/webhook/sync-transaction',{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(txPayload)})
     .then(()=>showToast('Payment synced to Google Sheets ✅'))
     .catch(()=>{offlineQueue.push(txPayload);saveData();showToast('Payment posted! (Sync will retry later)');});
   } else {
