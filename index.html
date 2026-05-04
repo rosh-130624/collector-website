@@ -1314,6 +1314,149 @@ function restoreMember(mId){
   showToast('Member restored!');renderMembers(true);
 }
 
+  function showMemberProfile(mId){
+  ['tab-dashboard','tab-applications','tab-members','tab-add-member','tab-collect','tab-history','tab-report','tab-transfers','tab-users','tab-settings'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+  document.getElementById('tab-profile').style.display='';
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  renderMemberProfile(mId);
+}
+
+function renderMemberProfile(mId){
+  const m=members.find(x=>x.id===mId);if(!m)return;
+  if(!m.notes)m.notes=[];if(!m.commHistory)m.commHistory=[];if(!m.auditTrail)m.auditTrail=[];
+  const reloanPct=getReloanPct(m);
+  const isEligible=reloanPct>=80&&m.loanTotal>0;
+  const {streak,missed}=getPaymentStreak(m.id);
+  const isOfficer=currentUser.role==='officer';
+  const readonlyIfOfficer=isOfficer?'readonly style="background:#f5f5f3;color:#aaa;cursor:not-allowed"':'';
+  const disabledIfOfficer=isOfficer?'disabled style="background:#f5f5f3;color:#aaa;cursor:not-allowed"':'';
+  const brgyOptions=(barangays[m.area]||[]).map(b=>`<option value="${b}" ${b===m.barangay?'selected':''}>${b}</option>`).join('');
+  document.getElementById('tab-profile').innerHTML=`
+  <button class="btn" onclick="switchTab('members')" style="margin-bottom:14px">← Back to Members</button>
+  <div class="profile-header">
+    <div class="profile-av">${ini(m.name)}</div>
+    <div>
+      <div class="profile-name">${m.name}</div>
+      <div class="profile-sub">${m.id} · <span class="area-pill" style="border:1px solid rgba(255,255,255,.2)">${m.area}</span>${m.barangay?' · '+m.barangay:''}</div>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+        ${streak>=3?`<span class="streak-badge fire">🔥 ${streak} streak</span>`:''}
+        ${missed>=3?`<span class="streak-badge warning">⚠️ ${missed} missed</span>`:''}
+        ${isEligible?`<span class="reloan-badge">✅ Re-loan Eligible</span>`:''}
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;padding-bottom:8px;border-bottom:1.5px solid var(--gray2)">Personal Information</div>
+    <div class="row2">
+      <div><div class="fl">Full Name</div><input id="ep-name" value="${m.name}"></div>
+      <div><div class="fl">Member ID</div><input id="ep-id" value="${m.id}" readonly style="background:#f5f5f3;color:#aaa"></div>
+    </div>
+    <div class="row2">
+      <div><div class="fl">Contact Number</div><input id="ep-contact" value="${m.contact}"></div>
+      <div><div class="fl">Address</div><input id="ep-address" value="${m.address}"></div>
+    </div>
+    <div class="row2">
+      <div><div class="fl">Barangay</div><select id="ep-brgy">${brgyOptions}</select></div>
+      <div><div class="fl">Area</div><select id="ep-area" ${disabledIfOfficer}>${AREAS.map(a=>`<option value="${a}" ${a===m.area?'selected':''}>${a}</option>`).join('')}</select></div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-top:14px;margin-bottom:12px;padding-bottom:8px;border-bottom:1.5px solid var(--gray2)">
+      Loan &amp; Financial Details ${isOfficer?'<span style="font-size:10px;color:var(--amber);font-weight:600;text-transform:none;letter-spacing:0;margin-left:8px">🔒 Supervisor access only</span>':''}
+    </div>
+    ${isOfficer?`<div style="background:#fff8e8;border:1.5px solid #f0d090;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--amber)">⚠️ As Account Officer, you can only edit personal details. Financial fields require Supervisor access.</div>`:''}
+    <div class="row3">
+      <div><div class="fl">Account Type</div><select id="ep-type" ${disabledIfOfficer}><option value="loan" ${m.type==='loan'?'selected':''}>Loan</option><option value="savings" ${m.type==='savings'?'selected':''}>Savings</option><option value="both" ${m.type==='both'?'selected':''}>Both</option></select></div>
+      <div><div class="fl">Schedule</div><select id="ep-sched" ${disabledIfOfficer}><option value="daily" ${m.sched==='daily'?'selected':''}>Daily</option><option value="weekly" ${m.sched==='weekly'?'selected':''}>Weekly</option><option value="twice-a-month" ${m.sched==='twice-a-month'?'selected':''}>Twice a Month</option><option value="monthly" ${m.sched==='monthly'?'selected':''}>Monthly</option></select></div>
+      <div><div class="fl">Assigned Officer</div><select id="ep-assigned" ${disabledIfOfficer}>${users.filter(u=>u.role==='officer').map(u=>`<option value="${u.id}" ${u.id===m.assignedTo?'selected':''}>${u.name}</option>`).join('')}</select></div>
+    </div>
+    <div class="row3">
+      <div><div class="fl">Due / Period (₱)</div><input type="number" id="ep-due" value="${m.dueAmount}" ${readonlyIfOfficer}></div>
+      <div><div class="fl">Total Loan (₱)</div><input type="number" id="ep-total" value="${m.loanTotal}" ${readonlyIfOfficer}></div>
+      <div><div class="fl">Outstanding Balance (₱)</div><input type="number" id="ep-bal" value="${m.loanBal}" ${readonlyIfOfficer}></div>
+    </div>
+    ${m.loanTotal>0?`<div class="reloan-bar-wrap">
+      <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:8px">Re-loan Eligibility — eligible at 80% paid</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${reloanPct}%;background:${isEligible?'var(--green)':'var(--amber)'}"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px">
+        <span style="color:#888">Currently at <b>${reloanPct}%</b></span>
+        ${isEligible?`<span class="reloan-badge">✅ Eligible!</span>`:`<span style="color:var(--amber)">Need ${80-reloanPct}% more</span>`}
+      </div>
+    </div>`:''}
+    <div class="btn-row">
+      <button class="btn" onclick="switchTab('members')">Cancel</button>
+      <button class="btn primary" onclick="saveProfile('${m.id}')">Update Member</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">📝 Member Notes</div></div>
+    <div style="font-size:11px;color:#888;margin-bottom:8px">Notes are permanent — cannot be deleted.</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input id="new-note-text" placeholder="Add a note..." style="flex:1">
+      <button class="btn primary sm" onclick="addMemberNote('${m.id}')">Add Note</button>
+    </div>
+    <div id="notes-list">
+      ${m.notes.length?m.notes.map(n=>`<div class="note-item"><div class="note-meta">${n.date} ${n.time} — <b>${n.author}</b></div><div class="note-text">${n.text}</div></div>`).join(''):'<div style="font-size:12px;color:#ccc;text-align:center;padding:12px">No notes yet.</div>'}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">📱 Communication History</div></div>
+    ${(m.commHistory||[]).length?m.commHistory.map(c=>`<div class="comm-item"><div class="comm-icon">${c.type==='sms'?'💬':c.type==='visit'?'🚶':c.type==='payment'?'💰':'📋'}</div><div><div style="font-weight:600;color:var(--text)">${c.msg}</div><div style="font-size:10px;color:#aaa;margin-top:2px">${c.date} ${c.time||''} · ${c.author||''}</div></div></div>`).join(''):'<div style="font-size:12px;color:#ccc;text-align:center;padding:12px">No communication history yet.</div>'}
+  </div>
+  ${isSupOrAbove()?`<div class="card">
+    <div class="card-header"><div class="card-title">🔍 Audit Trail</div></div>
+    ${(m.auditTrail||[]).length?m.auditTrail.map(a=>`<div class="audit-item"><b>${a.field}</b> changed from <span style="color:var(--red)">${a.oldVal}</span> to <span style="color:var(--green)">${a.newVal}</span> by <b>${a.by}</b> on ${a.date} at ${a.time}</div>`).join(''):'<div style="font-size:12px;color:#ccc;text-align:center;padding:12px">No changes recorded yet.</div>'}
+  </div>`:''}`;
+}
+
+function addMemberNote(mId){
+  const m=members.find(x=>x.id===mId);if(!m)return;
+  const text=document.getElementById('new-note-text').value.trim();
+  if(!text){showToast('Enter a note.');return;}
+  if(!m.notes)m.notes=[];
+  m.notes.unshift({id:'N'+Date.now(),text,author:currentUser.name,date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})});
+  saveData();showToast('Note added!');
+  document.getElementById('new-note-text').value='';
+  const nl=document.getElementById('notes-list');
+  if(nl)nl.innerHTML=m.notes.map(n=>`<div class="note-item"><div class="note-meta">${n.date} ${n.time} — <b>${n.author}</b></div><div class="note-text">${n.text}</div></div>`).join('');
+}
+
+function saveProfile(mId){
+  const m=members.find(x=>x.id===mId);if(!m)return;
+  const isOfficer=currentUser.role==='officer';
+  m.name=document.getElementById('ep-name').value.trim()||m.name;
+  m.contact=document.getElementById('ep-contact').value||m.contact;
+  m.address=document.getElementById('ep-address').value||m.address;
+  m.barangay=document.getElementById('ep-brgy').value||m.barangay;
+  if(!isOfficer){
+    m.area=document.getElementById('ep-area').value||m.area;
+    m.type=document.getElementById('ep-type').value||m.type;
+    m.sched=document.getElementById('ep-sched').value||m.sched;
+    m.assignedTo=document.getElementById('ep-assigned').value||m.assignedTo;
+    const newDue=Number(document.getElementById('ep-due').value);
+    const newTotal=Number(document.getElementById('ep-total').value);
+    const newBal=Number(document.getElementById('ep-bal').value);
+    if(!m.auditTrail)m.auditTrail=[];
+    const ts=new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
+    if(newDue!==m.dueAmount)m.auditTrail.unshift({field:'Due Amount',oldVal:fmt(m.dueAmount),newVal:fmt(newDue),by:currentUser.name,date:todayStr,time:ts});
+    if(newTotal!==m.loanTotal)m.auditTrail.unshift({field:'Total Loan',oldVal:fmt(m.loanTotal),newVal:fmt(newTotal),by:currentUser.name,date:todayStr,time:ts});
+    if(newBal!==m.loanBal)m.auditTrail.unshift({field:'Loan Balance',oldVal:fmt(m.loanBal),newVal:fmt(newBal),by:currentUser.name,date:todayStr,time:ts});
+    const oldBal=m.loanBal;
+    m.dueAmount=newDue||m.dueAmount;m.loanTotal=newTotal;m.loanBal=newBal;
+    if(newBal===0&&oldBal>0&&m.loanTotal>0)setTimeout(()=>showLoanCompletion(m),400);
+  }
+  saveData();syncMemberToSheets(m,'update');showToast('Member updated! ✅');
+}
+
+function showLoanCompletion(m){
+  const popup=document.createElement('div');
+  popup.className='completion-popup';
+  popup.innerHTML=`<div class="completion-box">
+    <div class="completion-emoji">🎉</div>
+    <div class="completion-title">Loan Completed!</div>
+    <div class="completion-sub"><b>${m.name}</b> has fully paid their <b>${fmt(m.loanTotal)}</b> loan. Congratulations!</div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="btn success" onclick="archiveMember('${m.id}');this.closest('.completion-popup').remove()">📦 Archive Member</button>
+      <button class="btn purple" onclick="this.closest('.completion-popup').remove();showToast('Update member profile to process re-loan.')">🔄 Process Re-loan</button>
+      <button class="btn warn" onclick="sendCongratsSmS('${m.id}');this.
 function goBack(returnTab){switchTab(returnTab||'members');}
 function showAddMemberTab(){editingMemberId=null;renderAddMember();['tab-dashboard','tab-applications','tab-members','tab-collect','tab-history','tab-report','tab-transfers','tab-users','tab-settings'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});document.getElementById('tab-add-member').style.display='';}
 function showEditMember(mId){editingMemberId=mId;renderAddMember(mId);['tab-dashboard','tab-applications','tab-members','tab-collect','tab-history','tab-report','tab-transfers','tab-users','tab-settings'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});document.getElementById('tab-add-member').style.display='';}
