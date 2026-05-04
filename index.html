@@ -367,14 +367,19 @@ tr:hover td{background:#fafbfc}
     </div>
   </div>
 
-  <!-- NOTIFICATION PANEL -->
+  <!-- NOTIFICAT<div class="toast" id="toast"></div>ION PANEL -->
   <div class="notif-panel" id="notif-panel"></div>
 
+  <div class="offline-banner" id="offline-banner">
+  <div class="offline-dot"></div>
+  <span id="offline-msg">You are offline — payments will sync when connected</span>
+</div>
   <div class="main">
     <div class="tabs" id="main-tabs"></div>
     <div id="tab-dashboard"></div>
     <div id="tab-applications" style="display:none"></div>
     <div id="tab-members" style="display:none"></div>
+<div id="tab-profile" style="display:none"></div>
     <div id="tab-add-member" style="display:none"></div>
     <div id="tab-collect" style="display:none"></div>
     <div id="tab-history" style="display:none"></div>
@@ -384,6 +389,7 @@ tr:hover td{background:#fafbfc}
     <div id="tab-settings" style="display:none"></div>
   </div>
 </div>
+  <button class="fab" id="fab-collect" onclick="switchTab('collect')">💰 Quick Collect</button>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
