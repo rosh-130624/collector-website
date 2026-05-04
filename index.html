@@ -2242,33 +2242,126 @@ function saveUserPin(uid){const np=document.getElementById('ep-new').value;const
 
 // ─── SETTINGS ───
 function renderSettings(){
-  document.getElementById('tab-settings').innerHTML=`<div class="card">
-    <div class="card-title" style="margin-bottom:14px">Cooperative Information</div>
-    <div class="row2"><div><div class="fl">Cooperative Name</div><input id="s-coop" value="${settings.coopName}"></div><div><div class="fl">Office Address</div><input id="s-addr" value="${settings.address}"></div></div>
-    <div><div class="fl">Contact Number / Email</div><input id="s-contact" value="${settings.contact}" style="margin-bottom:14px"></div>
-    <div class="card-title" style="margin-bottom:12px">Change My PIN</div>
-    <div class="row2"><div><div class="fl">New PIN</div><input type="password" id="s-pin-new" placeholder="New PIN"></div><div><div class="fl">Confirm PIN</div><input type="password" id="s-pin-confirm" placeholder="Confirm"></div></div>
-    <div class="card-title" style="margin:14px 0 12px">SMS Message Templates</div>
-    <div class="tpl-box"><label>Payment Receipt SMS</label><textarea id="s-sms-pay" rows="2" style="font-size:12px;resize:vertical">${settings.smsPayment}</textarea></div>
-    <div class="tpl-box" style="border-left-color:var(--green)"><label>Loan APPROVED SMS</label><textarea id="s-sms-approved" rows="3" style="font-size:12px;resize:vertical">${settings.smsApproved}</textarea></div>
-    <div class="tpl-box" style="border-left-color:var(--amber)"><label>Loan PARTIALLY APPROVED SMS</label><textarea id="s-sms-partial" rows="3" style="font-size:12px;resize:vertical">${settings.smsPartial}</textarea></div>
-    <div class="tpl-box" style="border-left-color:var(--red)"><label>Loan REJECTED SMS</label><textarea id="s-sms-rejected" rows="3" style="font-size:12px;resize:vertical">${settings.smsRejected}</textarea></div>
-    <div style="font-size:11px;color:#888;margin-bottom:14px">Variables: {name} · {ref} · {amount} · {approved_amount} · {member_id} · {balance} · {date} · {coop}</div>
-    <div class="btn-row">
-      ${isSupOrAbove()?`<button class="btn info" onclick="syncAllMembersToSheets()">Sync Members to Sheets</button>`:''}
-      ${currentUser?.role==='admin'?`<button class="btn danger" onclick="clearAllData()">Clear All Data</button>`:''}
-      <button class="btn primary" onclick="saveSettings()">Save Settings</button>
+  const el=document.getElementById('tab-settings');
+  el.innerHTML=`
+  <!-- COOPERATIVE INFO -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:14px">🏢 Cooperative Information</div>
+    <div class="row2">
+      <div><div class="fl">Cooperative Name</div><input id="s-coop" value="${settings.coopName}"></div>
+      <div><div class="fl">Branch Name</div><input id="s-branch" value="${settings.branchName||'Pioneering Branch'}"></div>
+    </div>
+    <div class="row2">
+      <div><div class="fl">Office Address</div><input id="s-addr" value="${settings.address}"></div>
+      <div><div class="fl">Office Hours</div><input id="s-hours" value="${settings.officeHours||'Mon-Sat, 8:00 AM - 5:00 PM'}"></div>
+    </div>
+    <div class="row2">
+      <div><div class="fl">Office Phone</div><input id="s-phone" value="${settings.contact}" placeholder="+63..."></div>
+      <div><div class="fl">Office Email</div><input id="s-email" value="${settings.email||''}" placeholder="email@example.com"></div>
     </div>
   </div>
-  <div class="card"><div class="card-title" style="margin-bottom:8px">System Info</div>
-    <div style="font-size:12px;color:#888;line-height:1.8">Members: <b>${members.length}</b> · Transactions: <b>${transactions.length}</b> · Applications: <b>${applications.length}</b> · Staff: <b>${users.length}</b><br>Logged in as: <b>${currentUser?.name}</b> · Role: <b>${currentUser?.role}</b> · Area: <b>${currentUser?.area}</b><br>Branch: <b>Pioneering Branch</b><br>Data saved in browser local storage. Export Excel regularly as backup.</div>
+
+  <!-- CHANGE MY PIN -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">🔑 Change My PIN</div>
+    <div class="row2">
+      <div><div class="fl">New PIN</div><input type="password" id="s-pin-new" placeholder="New PIN"></div>
+      <div><div class="fl">Confirm PIN</div><input type="password" id="s-pin-confirm" placeholder="Confirm"></div>
+    </div>
+  </div>
+
+  <!-- SMS TEMPLATES — OFFICER LEVEL -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:4px">📱 SMS Templates — Account Officer to Member</div>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">Variables: {name} {ref} {amount} {approved_amount} {member_id} {balance} {date} {coop}</div>
+    <div class="tpl-box"><label>Payment Receipt</label><textarea id="s-sms-pay" rows="2" style="font-size:12px;resize:vertical">${settings.smsPayment}</textarea></div>
+    <div class="tpl-box"><label>Upcoming Payment Reminder</label><textarea id="s-sms-upcoming" rows="2" style="font-size:12px;resize:vertical">${settings.smsUpcoming||'Hi {name}, this is a reminder that your payment of P{amount} is due tomorrow. Please prepare your payment. Thank you! - {coop}'}</textarea></div>
+    <div class="tpl-box" style="border-left-color:var(--amber)"><label>Missed Payment Reminder (Day 1-2)</label><textarea id="s-sms-missed1" rows="2" style="font-size:12px;resize:vertical">${settings.smsMissed1||'Hi {name}, we noticed your payment of P{amount} was missed. Please settle as soon as possible. - {coop}'}</textarea></div>
+    <div class="tpl-box" style="border-left-color:var(--amber)"><label>Missed Payment Reminder (Day 3-6)</label><textarea id="s-sms-missed2" rows="2" style="font-size:12px;resize:vertical">${settings.smsMissed2||'Hi {name}, this is a 2nd reminder. Your payment of P{amount} remains unpaid. Please contact us immediately. - {coop}'}</textarea></div>
+    <div class="tpl-box" style="border-left-color:var(--red)"><label>Payment Overdue Warning</label><textarea id="s-sms-overdue" rows="2" style="font-size:12px;resize:vertical">${settings.smsOverdue||'Hi {name}, your account is now overdue. Outstanding: P{balance}. Please settle urgently or visit our office. - {coop}'}</textarea></div>
+    <div class="tpl-box" style="border-left-color:var(--red)"><label>Final Overdue Warning (Day 7)</label><textarea id="s-sms-final" rows="2" style="font-size:12px;resize:vertical">${settings.smsFinalWarning||'Hi {name}, FINAL NOTICE: Your loan is severely overdue. Please settle immediately to avoid further action. Balance: P{balance}. - {coop}'}</textarea></div>
+    <div class="tpl-box"><label>Follow-up Visit Notice</label><textarea id="s-sms-visit" rows="2" style="font-size:12px;resize:vertical">${settings.smsVisit||'Hi {name}, our collector will be visiting your area today for payment collection. Please have your payment ready. - {coop}'}</textarea></div>
+    <div class="tpl-box" style="border-left-color:var(--green)"><label>Re-loan Eligibility Notice</label><textarea id="s-sms-reloan" rows="2" style="font-size:12px;resize:vertical">${settings.smsReloan||'Hi {name}, great news! You are now eligible to apply for a re-loan. Visit our office or apply online. - {coop}'}</textarea></div>
+    <div class="tpl-box" style="border-left-color:var(--green)"><label>New Member Welcome SMS</label><textarea id="s-sms-welcome" rows="2" style="font-size:12px;resize:vertical">${settings.smsWelcome||'Hi {name}, welcome to {coop}! Your Member ID is {member_id}. Thank you for trusting us with your financial needs.'}</textarea></div>
+  </div>
+
+  <!-- SMS TEMPLATES — LOAN DECISIONS -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">📋 SMS Templates — Loan Decisions</div>
+    <div class="tpl-box" style="border-left-color:var(--green)"><label>Loan APPROVED</label><textarea id="s-sms-approved" rows="3" style="font-size:12px;resize:vertical">${settings.smsApproved}</textarea></div>
+    <div class="tpl-box" style="border-left-color:var(--amber)"><label>Loan PARTIALLY APPROVED</label><textarea id="s-sms-partial" rows="3" style="font-size:12px;resize:vertical">${settings.smsPartial}</textarea></div>
+    <div class="tpl-box" style="border-left-color:var(--red)"><label>Loan REJECTED</label><textarea id="s-sms-rejected" rows="3" style="font-size:12px;resize:vertical">${settings.smsRejected}</textarea></div>
+  </div>
+
+  <!-- BARANGAY MANAGEMENT -->
+  ${isSupOrAbove()?`<div class="card">
+    <div class="card-title" style="margin-bottom:4px">🏘 Barangay Management</div>
+    <div style="font-size:11px;color:#888;margin-bottom:14px">Rename barangays per area. Click 🔓 to lock a name from accidental changes.</div>
+    ${AREAS.map(area=>`
+    <div style="margin-bottom:16px">
+      <div style="font-weight:700;font-size:12px;color:var(--black);margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid var(--gray2)">${area}</div>
+      <div class="brgy-grid">
+        ${(barangays[area]||[]).map((b,i)=>`
+        <div class="brgy-item">
+          <input id="brgy-${area.replace(/ /g,'-')}-${i}" value="${b}" ${barangayLocks[area+i]?'readonly style="background:#f5f5f3;color:#aaa"':''}>
+          <button class="brgy-lock-btn ${barangayLocks[area+i]?'locked':''}" onclick="toggleBrgyLock('${area}',${i})">${barangayLocks[area+i]?'🔒':'🔓'}</button>
+        </div>`).join('')}
+      </div>
+    </div>`).join('')}
+    <button class="btn primary" onclick="saveBrgyNames()">Save Barangay Names</button>
+  </div>`:''}
+
+  <!-- ANNOUNCEMENTS MANAGER -->
+  ${isSupOrAbove()?`<div class="card">
+    <div class="card-title" style="margin-bottom:4px">📢 Announcements Manager</div>
+    <div style="font-size:11px;color:#888;margin-bottom:14px">Announcements appear on the member website. Toggle visibility anytime.</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn primary" onclick="showAddAnnouncement()">+ New Announcement</button>
+    </div>
+    <div id="ann-form" style="display:none;margin-bottom:14px"></div>
+    <div id="ann-list">${renderAnnouncementList()}</div>
+  </div>`:''}
+
+  <!-- SYNC + SYSTEM -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:8px">⚙️ System</div>
+    <div style="font-size:12px;color:#888;line-height:1.8;margin-bottom:12px">
+      Members: <b>${members.length}</b> · Transactions: <b>${transactions.length}</b> · Applications: <b>${applications.length}</b> · Staff: <b>${users.length}</b><br>
+      Logged in as: <b>${currentUser?.name}</b> · Role: <b>${currentUser?.role}</b><br>
+      Offline Queue: <b>${offlineQueue.length}</b> payment(s) pending sync
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${isSupOrAbove()?`<button class="btn info" onclick="syncAllMembersWithProgress()">🔄 Sync Members to Sheets</button>`:''}
+      ${currentUser?.role==='admin'?`<button class="btn danger" onclick="clearAllData()">🗑 Clear All Data</button>`:''}
+      <button class="btn primary" onclick="saveSettings()">💾 Save Settings</button>
+    </div>
+    <div class="sync-progress" id="sync-progress"></div>
   </div>`;
 }
 
 function saveSettings(){
   const np=document.getElementById('s-pin-new').value;const cp=document.getElementById('s-pin-confirm').value;
   if(np&&np!==cp){showToast('PINs do not match!');return;}
-  settings={...settings,coopName:document.getElementById('s-coop').value||settings.coopName,address:document.getElementById('s-addr').value||'',contact:document.getElementById('s-contact').value||'',smsPayment:document.getElementById('s-sms-pay').value,smsApproved:document.getElementById('s-sms-approved').value,smsPartial:document.getElementById('s-sms-partial').value,smsRejected:document.getElementById('s-sms-rejected').value};
+  settings={...settings,
+    coopName:document.getElementById('s-coop').value||settings.coopName,
+    branchName:document.getElementById('s-branch')?.value||settings.branchName||'Pioneering Branch',
+    address:document.getElementById('s-addr').value||'',
+    officeHours:document.getElementById('s-hours')?.value||'',
+    contact:document.getElementById('s-phone')?.value||'',
+    email:document.getElementById('s-email')?.value||'',
+    smsPayment:document.getElementById('s-sms-pay').value,
+    smsUpcoming:document.getElementById('s-sms-upcoming')?.value||settings.smsUpcoming||'',
+    smsMissed1:document.getElementById('s-sms-missed1')?.value||settings.smsMissed1||'',
+    smsMissed2:document.getElementById('s-sms-missed2')?.value||settings.smsMissed2||'',
+    smsOverdue:document.getElementById('s-sms-overdue')?.value||settings.smsOverdue||'',
+    smsFinalWarning:document.getElementById('s-sms-final')?.value||settings.smsFinalWarning||'',
+    smsVisit:document.getElementById('s-sms-visit')?.value||settings.smsVisit||'',
+    smsReloan:document.getElementById('s-sms-reloan')?.value||settings.smsReloan||'',
+    smsWelcome:document.getElementById('s-sms-welcome')?.value||settings.smsWelcome||'',
+    smsApproved:document.getElementById('s-sms-approved').value,
+    smsPartial:document.getElementById('s-sms-partial').value,
+    smsRejected:document.getElementById('s-sms-rejected').value,
+  };
   if(np){const u=users.find(x=>x.id===currentUser.id);if(u){u.pin=np;currentUser.pin=np;}}
   try{localStorage.setItem(KEYS.s,JSON.stringify(settings));}catch(e){}
   saveData();document.getElementById('s-pin-new').value='';document.getElementById('s-pin-confirm').value='';
