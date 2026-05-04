@@ -402,6 +402,7 @@ tr:hover td{background:#fafbfc}
     <div id="tab-applications" style="display:none"></div>
     <div id="tab-members" style="display:none"></div>
 <div id="tab-profile" style="display:none"></div>
+    <div id="tab-route" style="display:none"></div>
     <div id="tab-add-member" style="display:none"></div>
     <div id="tab-collect" style="display:none"></div>
     <div id="tab-history" style="display:none"></div>
@@ -728,12 +729,13 @@ function buildTabs(){
 const paidToday=mId=>transactions.filter(t=>t.memberId===mId&&t.date===todayStr&&(t.type==='loan'||t.type==='penalty')).reduce((s,t)=>s+Number(t.amount),0);
 
 function switchTab(name){
-  ['dashboard','applications','members','add-member','collect','history','report','transfers','users','settings'].forEach(n=>{const el=document.getElementById('tab-'+n);if(el)el.style.display='none';});
+  ['dashboard','route','applications','members','profile','add-member','collect','history','report','transfers','users','settings'].forEach(n=>{const el=document.getElementById('tab-'+n);if(el)el.style.display='none';});
   document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('tab-'+name);if(el)el.style.display='';
   document.querySelectorAll('.tab').forEach(btn=>{if(btn.getAttribute('onclick')?.includes("'"+name+"'"))btn.classList.add('active');});
   if(name==='dashboard'){fetchAndMergeApplications().then(()=>renderDashboard());}
   else if(name==='applications'){renderAppsSkeleton();fetchAndMergeApplications().then(()=>renderApplications());}
+  else if(name==='route')renderRoute();
   else if(name==='members')renderMembers();
   else if(name==='collect')renderCollect();
   else if(name==='history')renderHistory();
