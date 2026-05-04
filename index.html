@@ -457,6 +457,9 @@ function saveData(){
     localStorage.setItem(KEYS.tl,JSON.stringify(transferLog));
     localStorage.setItem(KEYS.dm,JSON.stringify(deletedMembers));
     localStorage.setItem(KEYS.n,JSON.stringify(notifications));
+    localStorage.setItem(KEYS.oq,JSON.stringify(offlineQueue));
+    localStorage.setItem(KEYS.brgy,JSON.stringify(barangays));
+    localStorage.setItem(KEYS.brgyLock,JSON.stringify(barangayLocks));
   }catch(e){showToast('Save error.');}
 }
 
