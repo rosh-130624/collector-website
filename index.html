@@ -1624,12 +1624,31 @@ function quickCollect(mId){switchTab('collect');setTimeout(()=>{document.getElem
 function buildSms(m,amount,txId,remaining){return settings.smsPayment.replace('{name}',m.name).replace('{amount}',Number(amount).toLocaleString('en-PH',{minimumFractionDigits:2})).replace('{date}',todayStr).replace('{ref}',txId).replace('{balance}',Number(remaining).toLocaleString('en-PH',{minimumFractionDigits:2})).replace('{coop}',settings.coopName);}
 
 function recordPayment(){
-  const mId=document.getElementById('pay-member').value;const amt=Number(document.getElementById('pay-amount').value);const type=document.getElementById('pay-type').value;const date=document.getElementById('pay-date').value;const notes=document.getElementById('pay-notes').value;const sendSms=document.getElementById('sms-toggle').checked;
+  const mId=document.getElementById('pay-member').value;const amt=Number(document.getElementById('pay-amount').value);
+  const type=document.getElementById('pay-type').value;const date=document.getElementById('pay-date').value;
+  const notes=document.getElementById('pay-notes').value;const sendSms=document.getElementById('sms-toggle').checked;
   if(!mId){showToast('Select a member.');return;}if(!amt||amt<=0){showToast('Enter a valid amount.');return;}
   const m=members.find(x=>x.id===mId);const txId=genId();const now=new Date();const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
-  transactions.push({id:txId,memberId:mId,memberName:m.name,memberContact:m.contact,memberArea:m.area,collectorId:currentUser.id,collectorName:currentUser.name,type,amount:amt,date,notes,time});
-  if(type==='loan'&&m.loanBal>0)m.loanBal=Math.max(0,m.loanBal-amt);
+  const tx={id:txId,memberId:mId,memberName:m.name,memberContact:m.contact,memberArea:m.area,collectorId:currentUser.id,collectorName:currentUser.name,type,amount:amt,date,notes,time};
+  transactions.push(tx);
+  if(type==='loan'&&m.loanBal>0){
+    const oldBal=m.loanBal;
+    m.loanBal=Math.max(0,m.loanBal-amt);
+    if(!m.commHistory)m.commHistory=[];
+    m.commHistory.unshift({type:'payment',msg:`Payment of ${fmt(amt)} recorded. New balance: ${fmt(m.loanBal)}`,date,time,author:currentUser.name});
+    if(m.loanBal===0&&oldBal>0&&m.loanTotal>0)setTimeout(()=>showLoanCompletion(m),500);
+  }
   saveData();
+  const txPayload={...tx,member_id:m.id,loan_balance:m.loanBal,synced_at:new Date().toISOString()};
+  if(navigator.onLine){
+    fetch('https://patriciatelen14.app.n8n.cloud/webhook/sync-transaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(txPayload)})
+    .then(()=>showToast('Payment synced to Google Sheets ✅'))
+    .catch(()=>{offlineQueue.push(txPayload);saveData();showToast('Payment posted! (Sync will retry later)');});
+  } else {
+    offlineQueue.push(txPayload);saveData();
+    const q=offlineQueue.length;
+    if(document.getElementById('offline-msg'))document.getElementById('offline-msg').textContent=`You are offline — ${q} payment${q!==1?'s':''} pending sync`;
+  }
   const remaining=m.loanBal;const smsText=sendSms?buildSms(m,amt,txId,remaining):'';const smsNum=m.contact.replace(/\D/g,'');
   const receipt=document.getElementById('last-receipt');receipt.style.display='';
   receipt.innerHTML=`<div class="card">
@@ -1643,7 +1662,7 @@ function recordPayment(){
       <div class="lbl">Area</div><div class="val">${m.area}</div>
       <div class="lbl">Type</div><div class="val"><span class="badge ${type}">${type}</span></div>
       <div class="lbl">Amount Paid</div><div class="val" style="color:var(--green);font-size:16px;font-weight:800">${fmt(amt)}</div>
-      <div class="lbl">Date & Time</div><div class="val">${date} ${time}</div>
+      <div class="lbl">Date &amp; Time</div><div class="val">${date} ${time}</div>
       ${type==='loan'?`<div class="lbl">Remaining Loan</div><div class="val">${fmt(remaining)}</div>`:''}
       ${notes?`<div class="lbl">Notes</div><div class="val">${notes}</div>`:''}
       <div class="lbl">Collector</div><div class="val">${currentUser.name}</div>
