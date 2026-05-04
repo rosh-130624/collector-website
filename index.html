@@ -2370,7 +2370,143 @@ function saveSettings(){
 
 function clearAllData(){if(!confirm('Delete ALL data permanently? Cannot be undone.'))return;members=[];transactions=[];applications=[];transferRequests=[];transferLog=[];txCounter=1;appCounter=1;trCounter=1;saveData();showToast('All data cleared.');renderDashboard();}
 
-// ─── PIN RESET SYSTEM ───
+// ─── ANNOUNCEMENTS ───
+function renderAnnouncementList(){
+  if(!announcements.length)return'<div style="font-size:12px;color:#ccc;text-align:center;padding:16px">No announcements yet. Add one above.</div>';
+  return announcements.map((a,i)=>`
+  <div class="ann-item ${a.visible?'':'hidden-ann'}">
+    <div class="ann-title-row">
+      <div>
+        <div style="font-weight:700;font-size:13px">${a.title}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px">${a.date} · ${a.visible?'<span style="color:var(--green)">Visible on member site</span>':'<span style="color:#aaa">Hidden</span>'}</div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0">
+        <button class="btn sm ${a.visible?'warn':'success'}" onclick="toggleAnnouncement(${i})">${a.visible?'Hide':'Show'}</button>
+        <button class="btn sm info" onclick="editAnnouncement(${i})">Edit</button>
+        <button class="btn sm danger" onclick="deleteAnnouncement(${i})">Delete</button>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#555;line-height:1.6">${a.body}</div>
+  </div>`).join('');
+}
+
+function showAddAnnouncement(){
+  const form=document.getElementById('ann-form');form.style.display='';
+  form.innerHTML=`<div class="card" style="border:1.5px solid var(--green);margin-bottom:0">
+    <div class="card-title" style="margin-bottom:12px">New Announcement</div>
+    <div class="fl">Title</div><input id="ann-title" placeholder="Announcement title..." style="margin-bottom:8px">
+    <div class="fl">Message</div><textarea id="ann-body" rows="3" placeholder="Write your announcement here..." style="margin-bottom:8px;resize:vertical"></textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <input type="checkbox" id="ann-visible" style="width:auto" checked>
+      <label for="ann-visible" style="font-size:12px;color:#666">Show on member website immediately</label>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" onclick="saveAnnouncement(-1)">Post Announcement</button>
+      <button class="btn" onclick="document.getElementById('ann-form').style.display='none'">Cancel</button>
+    </div>
+  </div>`;
+  form.scrollIntoView({behavior:'smooth'});
+}
+
+function editAnnouncement(idx){
+  const a=announcements[idx];
+  const form=document.getElementById('ann-form');form.style.display='';
+  form.innerHTML=`<div class="card" style="border:1.5px solid var(--amber);margin-bottom:0">
+    <div class="card-title" style="margin-bottom:12px">Edit Announcement</div>
+    <div class="fl">Title</div><input id="ann-title" value="${a.title}" style="margin-bottom:8px">
+    <div class="fl">Message</div><textarea id="ann-body" rows="3" style="margin-bottom:8px;resize:vertical">${a.body}</textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <input type="checkbox" id="ann-visible" style="width:auto" ${a.visible?'checked':''}>
+      <label for="ann-visible" style="font-size:12px;color:#666">Show on member website</label>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" onclick="saveAnnouncement(${idx})">Update Announcement</button>
+      <button class="btn" onclick="document.getElementById('ann-form').style.display='none'">Cancel</button>
+    </div>
+  </div>`;
+  form.scrollIntoView({behavior:'smooth'});
+}
+
+function saveAnnouncement(idx){
+  const title=document.getElementById('ann-title').value.trim();
+  const body=document.getElementById('ann-body').value.trim();
+  const visible=document.getElementById('ann-visible').checked;
+  if(!title||!body){showToast('Please fill in title and message.');return;}
+  if(idx===-1){
+    announcements.unshift({id:'ANN-'+Date.now(),title,body,visible,date:todayStr,createdBy:currentUser.name});
+    showToast('Announcement posted! ✅');
+  } else {
+    announcements[idx]={...announcements[idx],title,body,visible,updatedDate:todayStr,updatedBy:currentUser.name};
+    showToast('Announcement updated! ✅');
+  }
+  saveData();syncAnnouncementToSheets(announcements[idx===−1?0:idx]);
+  document.getElementById('ann-form').style.display='none';
+  const annList=document.getElementById('ann-list');
+  if(annList)annList.innerHTML=renderAnnouncementList();
+}
+
+function toggleAnnouncement(idx){
+  announcements[idx].visible=!announcements[idx].visible;
+  saveData();syncAnnouncementToSheets(announcements[idx]);
+  showToast(announcements[idx].visible?'Announcement is now visible on member site!':'Announcement hidden from member site.');
+  const annList=document.getElementById('ann-list');
+  if(annList)annList.innerHTML=renderAnnouncementList();
+}
+
+function deleteAnnouncement(idx){
+  if(!confirm('Delete this announcement? This cannot be undone.'))return;
+  const a=announcements[idx];
+  announcements.splice(idx,1);
+  saveData();
+  // Sync deletion to Google Sheets
+  fetch('https://patriciatelen14.app.n8n.cloud/webhook/sync-announcements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id:a.id})}).catch(e=>console.warn('Sync failed:',e));
+  showToast('Announcement deleted.');
+  const annList=document.getElementById('ann-list');
+  if(annList)annList.innerHTML=renderAnnouncementList();
+}
+
+function syncAnnouncementToSheets(a){
+  if(!a)return;
+  fetch('https://patriciatelen14.app.n8n.cloud/webhook/sync-announcements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upsert',id:a.id,title:a.title,body:a.body,visible:a.visible,date:a.date,created_by:a.createdBy||currentUser.name})})
+  .then(()=>showToast('Announcement synced to member site ✅'))
+  .catch(e=>console.warn('Announcement sync failed:',e));
+}
+
+// ─── BARANGAY MANAGEMENT ───
+function toggleBrgyLock(area,idx){
+  const key=area+idx;
+  barangayLocks[key]=!barangayLocks[key];
+  saveData();renderSettings();
+}
+
+function saveBrgyNames(){
+  AREAS.forEach(area=>{
+    if(!barangays[area])barangays[area]=[];
+    barangays[area].forEach((b,i)=>{
+      if(barangayLocks[area+i])return; // skip locked
+      const input=document.getElementById('brgy-'+area.replace(/ /g,'-')+'-'+i);
+      if(input&&input.value.trim())barangays[area][i]=input.value.trim();
+    });
+  });
+  saveData();showToast('Barangay names saved! ✅');renderSettings();
+}
+
+// ─── SYNC WITH PROGRESS ───
+async function syncAllMembersWithProgress(){
+  const prog=document.getElementById('sync-progress');
+  if(prog){prog.style.display='block';prog.textContent='Starting sync...';}
+  let synced=0;
+  for(const m of members){
+    if(prog)prog.textContent=`Syncing ${synced+1} of ${members.length}: ${m.name}...`;
+    await syncMemberToSheets(m,'add');synced++;
+  }
+  if(prog){
+    prog.textContent=`✅ ${synced} members synced successfully!`;
+    setTimeout(()=>{prog.style.display='none';},10000);
+  }
+  showToast(`✅ ${synced} members synced to Google Sheets!`);
+}
+  // ─── PIN RESET SYSTEM ───
 function showPinReset(){
   document.getElementById('login-main-form').style.display='none';
   const ra=document.getElementById('pin-reset-area');ra.style.display='block';
