@@ -919,7 +919,85 @@ function renderBranchOverview(){
   </div>`;
 }
 
-// ─── WALK-IN REGISTRATION ───
+// ─── COLLECTION ROUTE ───
+function renderRoute(){
+  const vm=getVisibleMembers().filter(m=>m.type!=='savings');
+  if(lastRouteDate!==todayStr){visitedToday={};lastRouteDate=todayStr;saveData();}
+  let route=collectionRoute.filter(id=>vm.find(m=>m.id===id));
+  vm.forEach(m=>{if(!route.includes(m.id))route.push(m.id);});
+  collectionRoute=route;
+  const expectedTotal=vm.reduce((s,m)=>s+m.dueAmount,0);
+  const collectedToday=transactions.filter(t=>t.date===todayStr&&vm.find(m=>m.id===t.memberId)).reduce((s,t)=>s+Number(t.amount),0);
+  const el=document.getElementById('tab-route');
+  el.innerHTML=`
+  <div class="route-total">
+    <div><div class="route-total-label">Expected Today</div><div class="route-total-val">${fmt(expectedTotal)}</div></div>
+    <div style="text-align:right"><div class="route-total-label">Collected So Far</div><div class="route-total-val" style="color:${collectedToday>=expectedTotal?'var(--gl)':'#fff'}">${fmt(collectedToday)}</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🗺 Today's Collection Route</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:10px;color:#aaa">Drag ⠿ to reorder</span>
+        <button class="btn sm" onclick="saveRoute()">Save Order</button>
+      </div>
+    </div>
+    <div id="route-list"></div>
+  </div>`;
+  renderRouteItems(route,vm);
+  initRouteDragDrop();
+}
+
+function renderRouteItems(route,vm){
+  const list=document.getElementById('route-list');if(!list)return;
+  list.innerHTML=route.map((mId,idx)=>{
+    const m=vm.find(x=>x.id===mId);if(!m)return'';
+    const paid=paidToday(m.id);
+    const isPaid=paid>=m.dueAmount;
+    const isVisited=visitedToday[mId];
+    const status=isPaid?'paid':isVisited?'visited':'pending';
+    return`<div class="route-item" draggable="true" data-idx="${idx}" data-mid="${mId}">
+      <div class="route-num">${idx+1}</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:13px">${m.name}</div>
+        <div style="font-size:11px;color:#888">${m.barangay||m.area} · Due: ${fmt(m.dueAmount)}</div>
+      </div>
+      <span class="route-status ${status}">${isPaid?'✅ Paid':isVisited?'👋 Visited':'⏳ Pending'}</span>
+      ${!isPaid&&!isVisited?`<button class="btn sm warn" onclick="markVisited('${mId}')">Mark Visited</button>`:''}
+      <button class="btn sm primary" onclick="quickCollect('${mId}')">Collect</button>
+      <span style="color:#ccc;cursor:grab;padding:0 4px;font-size:16px">⠿</span>
+    </div>`;
+  }).join('');
+}
+
+function initRouteDragDrop(){
+  const list=document.getElementById('route-list');if(!list)return;
+  list.addEventListener('dragstart',e=>{
+    const item=e.target.closest('.route-item');if(!item)return;
+    dragSrcIdx=Number(item.dataset.idx);item.classList.add('dragging');
+  });
+  list.addEventListener('dragover',e=>{
+    e.preventDefault();
+    const item=e.target.closest('.route-item');if(!item)return;
+    list.querySelectorAll('.route-item').forEach(el=>el.classList.remove('over'));
+    item.classList.add('over');
+  });
+  list.addEventListener('dragleave',e=>{const item=e.target.closest('.route-item');if(item)item.classList.remove('over');});
+  list.addEventListener('drop',e=>{
+    e.preventDefault();
+    const item=e.target.closest('.route-item');if(!item)return;
+    const destIdx=Number(item.dataset.idx);
+    if(dragSrcIdx===null||dragSrcIdx===destIdx)return;
+    const moved=collectionRoute.splice(dragSrcIdx,1)[0];
+    collectionRoute.splice(destIdx,0,moved);
+    saveRoute();renderRoute();
+  });
+  list.addEventListener('dragend',()=>{list.querySelectorAll('.route-item').forEach(el=>el.classList.remove('dragging','over'));});
+}
+
+function saveRoute(){saveData();showToast('Route order saved! ✅');}
+function markVisited(mId){visitedToday[mId]=true;saveData();showToast('Marked as visited!');renderRoute();}
+  // ─── WALK-IN REGISTRATION ───
 function showWalkIn(){
   renderAddMember(null,true);
   ['tab-dashboard','tab-applications','tab-members','tab-collect','tab-history','tab-report','tab-transfers','tab-users','tab-settings'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
