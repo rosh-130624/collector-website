@@ -1328,6 +1328,7 @@ function renderMemberRow(m){
     </td>
   </tr>`;
 }
+ function renderRecycleBin(){
   if(!deletedMembers.length)return`<div class="card" style="margin-bottom:14px;background:#fdecea;border:1.5px solid #f5b7b1"><div style="font-size:13px;color:var(--red);text-align:center;padding:12px">Recycle bin is empty.</div></div>`;
   const now=Date.now();const sevenDays=7*24*60*60*1000;
   return`<div class="card" style="margin-bottom:14px;border:1.5px solid #f5b7b1;background:#fdecea">
