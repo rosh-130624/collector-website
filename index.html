@@ -447,6 +447,11 @@ let barangays={
   'Hinunangan':['Brgy A','Brgy B','Brgy C','Brgy D','Brgy E','Brgy F','Brgy G','Brgy H'],
 };
 let barangayLocks={};
+  let collectionRoute=[];
+let lastRouteDate='';
+let visitedToday={};
+let announcements=[];
+let dragSrcIdx=null;
 
 let settings={
   coopName:'Southern Leyte Cooperative',
@@ -458,7 +463,7 @@ let settings={
   smsRejected:'Hi {name}, we regret to inform you that your loan application (Ref: {ref}) was not approved at this time. We encourage you to visit our office during business hours to discuss your options. Thank you for your understanding. - Southern Leyte Cooperative',
 };
 
-const KEYS={m:'slcoop3-members',t:'slcoop3-tx',tc:'slcoop3-txc',s:'slcoop3-settings',a:'slcoop3-apps',ac:'slcoop3-appc',u:'slcoop3-users',tr:'slcoop3-transfers',trc:'slcoop3-trc',tl:'slcoop3-tlog',dm:'slcoop3-deleted-members',n:'slcoop3-notifications',oq:'slcoop3-offline-queue',brgy:'slcoop3-barangays',brgyLock:'slcoop3-brgy-locks'};
+const KEYS={m:'slcoop3-members',t:'slcoop3-tx',tc:'slcoop3-txc',s:'slcoop3-settings',a:'slcoop3-apps',ac:'slcoop3-appc',u:'slcoop3-users',tr:'slcoop3-transfers',trc:'slcoop3-trc',tl:'slcoop3-tlog',dm:'slcoop3-deleted-members',n:'slcoop3-notifications',oq:'slcoop3-offline-queue',brgy:'slcoop3-barangays',brgyLock:'slcoop3-brgy-locks',route:'slcoop3-route',routeDate:'slcoop3-route-date',visited:'slcoop3-visited',ann:'slcoop3-announcements'};
 const fmt=n=>'₱'+Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const ini=n=>n.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
 const genId=()=>'TX'+String(txCounter++).padStart(4,'0');
