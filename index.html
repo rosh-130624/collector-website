@@ -568,6 +568,7 @@ function doLogin(){
   document.getElementById('role-badge-wrap').innerHTML=`<span class="role-badge ${user.role}">${roleLabel(user.role)}</span>`;
   renderBell();
   buildTabs();switchTab('dashboard');
+  checkOnlineStatus();syncOfflineQueue();
   // Close any open notif panel on login
   document.getElementById('notif-panel').classList.remove('open');
 }
