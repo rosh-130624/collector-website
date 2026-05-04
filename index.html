@@ -530,6 +530,10 @@ function saveData(){
     localStorage.setItem(KEYS.oq,JSON.stringify(offlineQueue));
     localStorage.setItem(KEYS.brgy,JSON.stringify(barangays));
     localStorage.setItem(KEYS.brgyLock,JSON.stringify(barangayLocks));
+    localStorage.setItem(KEYS.route,JSON.stringify(collectionRoute));
+    localStorage.setItem(KEYS.routeDate,lastRouteDate);
+    localStorage.setItem(KEYS.visited,JSON.stringify(visitedToday));
+    localStorage.setItem(KEYS.ann,JSON.stringify(announcements));
   }catch(e){showToast('Save error.');}
 }
 
@@ -549,6 +553,12 @@ function loadData(){
   try{const r=localStorage.getItem(KEYS.oq);if(r)offlineQueue=JSON.parse(r);}catch(e){}
   try{const r=localStorage.getItem(KEYS.brgy);if(r)barangays=JSON.parse(r);}catch(e){}
   try{const r=localStorage.getItem(KEYS.brgyLock);if(r)barangayLocks=JSON.parse(r);}catch(e){}
+  try{const r=localStorage.getItem(KEYS.route);if(r)collectionRoute=JSON.parse(r);}catch(e){}
+  try{const r=localStorage.getItem(KEYS.routeDate);if(r)lastRouteDate=r;}catch(e){}
+  try{const r=localStorage.getItem(KEYS.visited);if(r)visitedToday=JSON.parse(r);}catch(e){}
+  try{const r=localStorage.getItem(KEYS.ann);if(r)announcements=JSON.parse(r);}catch(e){}
+  // Reset route visited if new day
+  if(lastRouteDate!==todayStr){visitedToday={};lastRouteDate=todayStr;}
   // Auto-purge deleted members older than 7 days
   const sevenDaysAgo=Date.now()-(7*24*60*60*1000);
   const before=deletedMembers.length;
