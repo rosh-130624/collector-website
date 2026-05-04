@@ -503,7 +503,7 @@ async function syncOfflineQueue(){
   const toSync=[...offlineQueue];offlineQueue=[];saveData();
   let synced=0;
   for(const tx of toSync){
-    try{await fetch('https://patriciatelen14.app.n8n.cloud/webhook/sync-transaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(tx)});synced++;}
+    try{await fetch('https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(tx)});synced++;}
     catch(e){offlineQueue.push(tx);}
   }
   saveData();checkOnlineStatus();
@@ -1007,11 +1007,11 @@ function showWalkIn(){
 }
 
 // ─── N8N ENDPOINTS ───
-const N8N_SYNC_MEMBER='https://patriciatelen14.app.n8n.cloud/webhook/sync-member';
-const N8N_GET_APPS='https://patriciatelen14.app.n8n.cloud/webhook/get-applications';
-const N8N_GET_MEMBER='https://patriciatelen14.app.n8n.cloud/webhook/get-member-portal';
-const N8N_TRACK_APP='https://patriciatelen14.app.n8n.cloud/webhook/track-application';
-const N8N_STATUS='https://patriciatelen14.app.n8n.cloud/webhook/update-application-status';
+const N8N_SYNC_MEMBER='https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api';
+const N8N_GET_APPS='https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api';
+const N8N_GET_MEMBER='https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api';
+const N8N_TRACK_APP='https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api';
+const N8N_STATUS='https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api';
 
 async function syncMemberToSheets(member,action='add'){
   try{
@@ -1773,7 +1773,7 @@ function recordPayment(){
   saveData();
   const txPayload={...tx,member_id:m.id,loan_balance:m.loanBal,synced_at:new Date().toISOString()};
   if(navigator.onLine){
-   fetch('https://patriciatelen14.app.n8n.cloud/webhook/sync-transaction',{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(txPayload)})
+   fetch('https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api',{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(txPayload)})
     .then(()=>showToast('Payment synced to Google Sheets ✅'))
     .catch(()=>{offlineQueue.push(txPayload);saveData();showToast('Payment posted! (Sync will retry later)');});
   } else {
@@ -2459,7 +2459,7 @@ function deleteAnnouncement(idx){
   announcements.splice(idx,1);
   saveData();
   // Sync deletion to Google Sheets
-  fetch('https://patriciatelen14.app.n8n.cloud/webhook/sync-announcements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id:a.id})}).catch(e=>console.warn('Sync failed:',e));
+  fetch('https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id:a.id})}).catch(e=>console.warn('Sync failed:',e));
   showToast('Announcement deleted.');
   const annList=document.getElementById('ann-list');
   if(annList)annList.innerHTML=renderAnnouncementList();
@@ -2467,7 +2467,7 @@ function deleteAnnouncement(idx){
 
 function syncAnnouncementToSheets(a){
   if(!a)return;
-  fetch('https://patriciatelen14.app.n8n.cloud/webhook/sync-announcements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upsert',id:a.id,title:a.title,body:a.body,visible:a.visible,date:a.date,created_by:a.createdBy||currentUser.name})})
+  fetch('https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upsert',id:a.id,title:a.title,body:a.body,visible:a.visible,date:a.date,created_by:a.createdBy||currentUser.name})})
   .then(()=>showToast('Announcement synced to member site ✅'))
   .catch(e=>console.warn('Announcement sync failed:',e));
 }
