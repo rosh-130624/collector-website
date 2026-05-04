@@ -2439,7 +2439,7 @@ function saveAnnouncement(idx){
     announcements[idx]={...announcements[idx],title,body,visible,updatedDate:todayStr,updatedBy:currentUser.name};
     showToast('Announcement updated! ✅');
   }
-  saveData();syncAnnouncementToSheets(announcements[idx===−1?0:idx]);
+  saveData();syncAnnouncementToSheets(announcements[idx===-1?0:idx]);
   document.getElementById('ann-form').style.display='none';
   const annList=document.getElementById('ann-list');
   if(annList)annList.innerHTML=renderAnnouncementList();
