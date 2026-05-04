@@ -1500,7 +1500,19 @@ function showLoanCompletion(m){
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
       <button class="btn success" onclick="archiveMember('${m.id}');this.closest('.completion-popup').remove()">📦 Archive Member</button>
       <button class="btn purple" onclick="this.closest('.completion-popup').remove();showToast('Update member profile to process re-loan.')">🔄 Process Re-loan</button>
-      <button class="btn warn" onclick="sendCongratsSmS('${m.id}');this.
+     <button class="btn warn" onclick="sendCongratsSmS('${m.id}');this.closest('.completion-popup').remove()">📱 Send Congrats SMS</button>
+      <button class="btn" onclick="this.closest('.completion-popup').remove()">Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(popup);
+}
+
+function archiveMember(mId){const m=members.find(x=>x.id===mId);if(!m)return;m.archived=true;m.archivedAt=todayStr;saveData();showToast('Member archived.');}
+function sendCongratsSmS(mId){
+  const m=members.find(x=>x.id===mId);if(!m)return;
+  const msg=`Hi ${m.name}, congratulations! You have fully paid your loan. Thank you for your trust in ${settings.coopName}. Visit us for re-loan options!`;
+  window.open(`sms:${m.contact.replace(/\D/g,'')}?body=${encodeURIComponent(msg)}`,'_blank');
+}
 function goBack(returnTab){switchTab(returnTab||'members');}
 function showAddMemberTab(){editingMemberId=null;renderAddMember();['tab-dashboard','tab-applications','tab-members','tab-collect','tab-history','tab-report','tab-transfers','tab-users','tab-settings'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});document.getElementById('tab-add-member').style.display='';}
 function showEditMember(mId){editingMemberId=mId;renderAddMember(mId);['tab-dashboard','tab-applications','tab-members','tab-collect','tab-history','tab-report','tab-transfers','tab-users','tab-settings'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});document.getElementById('tab-add-member').style.display='';}
