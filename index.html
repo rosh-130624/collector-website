@@ -476,6 +476,9 @@ function loadData(){
   try{const r=localStorage.getItem(KEYS.tl);if(r)transferLog=JSON.parse(r);}catch(e){}
   try{const r=localStorage.getItem(KEYS.dm);if(r)deletedMembers=JSON.parse(r);}catch(e){}
   try{const r=localStorage.getItem(KEYS.n);if(r)notifications=JSON.parse(r);}catch(e){}
+  try{const r=localStorage.getItem(KEYS.oq);if(r)offlineQueue=JSON.parse(r);}catch(e){}
+  try{const r=localStorage.getItem(KEYS.brgy);if(r)barangays=JSON.parse(r);}catch(e){}
+  try{const r=localStorage.getItem(KEYS.brgyLock);if(r)barangayLocks=JSON.parse(r);}catch(e){}
   // Auto-purge deleted members older than 7 days
   const sevenDaysAgo=Date.now()-(7*24*60*60*1000);
   const before=deletedMembers.length;
