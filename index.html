@@ -499,6 +499,7 @@ function loadData(){
   }
   // Ensure all users have phone field
   users=users.map(u=>({phone:'',...u}));
+  members=members.map(m=>({barangay:'',notes:[],commHistory:[],auditTrail:[],...m}));
   // Ensure all applications have new fields
   applications=applications.map(a=>({managerDecision:null,supervisorDecision:null,officerSmsSent:false,...a}));
   populateLoginDropdown();
