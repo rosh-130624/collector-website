@@ -1582,8 +1582,12 @@ function renderCollect(){
   <div class="card">
     <div class="card-title" style="margin-bottom:14px">Record a Payment</div>
     <div class="row2">
-      <div><div class="fl">Select Member</div><select id="pay-member" onchange="fillPayInfo()"><option value="">-- Choose Member --</option>${vm.map(m=>`<option value="${m.id}">${m.name} — ${m.area} (${m.id})</option>`).join('')}</select></div>
-      <div><div class="fl">Payment Type</div><select id="pay-type"><option value="loan">Loan Payment</option><option value="savings">Savings Deposit</option><option value="penalty">Penalty / Interest</option><option value="other">Other</option></select></div>
+      <div>
+        <div class="fl">Select Member</div>
+        <input type="text" id="pay-search" placeholder="Search name or Member ID..." oninput="filterPayMembers()" style="margin-bottom:6px">
+        <select id="pay-member" onchange="fillPayInfo()"><option value="">-- Choose Member --</option>${vm.map(m=>`<option value="${m.id}">${m.name} — ${m.area} (${m.id})</option>`).join('')}</select>
+      </div>
+      <div><div class="fl">Payment Type</div><select id="pay-type"><option value="loan">Regular Loan Payment</option><option value="loan">Advance Payment</option><option value="savings">Savings Deposit</option><option value="penalty">Penalty / Interest</option><option value="other">Other</option></select></div>
     </div>
     <div id="member-info-box" style="display:none;margin-bottom:12px"></div>
     <div class="row2">
@@ -1591,13 +1595,21 @@ function renderCollect(){
       <div><div class="fl">Payment Date</div><input type="date" id="pay-date" value="${todayStr}"></div>
     </div>
     <div style="margin-bottom:12px"><div class="fl">Notes / Remarks</div><input id="pay-notes" placeholder="Optional..."></div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
       <input type="checkbox" id="sms-toggle" style="width:auto" checked>
       <label for="sms-toggle" style="font-size:12px;color:#666">Send SMS receipt to member</label>
     </div>
+    ${!navigator.onLine?`<div style="background:#fff8e8;border:1.5px solid #f0d090;border-radius:8px;padding:8px 12px;font-size:11px;color:var(--amber);margin-bottom:10px">📴 You are offline. Payment will be saved locally and synced when connected.</div>`:''}
     <div class="btn-row"><button class="btn" onclick="renderCollect()">Clear</button><button class="btn green" onclick="recordPayment()">Post Payment</button></div>
   </div>
   <div id="last-receipt" style="display:none"></div>`;
+}
+
+function filterPayMembers(){
+  const q=(document.getElementById('pay-search')||{value:''}).value.toLowerCase();
+  const sel=document.getElementById('pay-member');if(!sel)return;
+  const vm=getVisibleMembers();
+  sel.innerHTML='<option value="">-- Choose Member --</option>'+vm.filter(m=>m.name.toLowerCase().includes(q)||m.id.toLowerCase().includes(q)).map(m=>`<option value="${m.id}">${m.name} — ${m.area} (${m.id})</option>`).join('');
 }
 
 function fillPayInfo(){
