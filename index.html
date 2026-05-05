@@ -2466,7 +2466,7 @@ function deleteAnnouncement(idx){
 
 function syncAnnouncementToSheets(a){
   if(!a)return;
-  fetch('https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upsert',id:a.id,title:a.title,body:a.body,visible:a.visible,date:a.date,created_by:a.createdBy||currentUser.name})})
+  fetch('https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api',{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'sync-announcements',id:a.id,title:a.title,body:a.body,visible:a.visible,date:a.date,created_by:a.createdBy||currentUser.name})})
   .then(()=>showToast('Announcement synced to member site ✅'))
   .catch(e=>console.warn('Announcement sync failed:',e));
 }
