@@ -1016,7 +1016,7 @@ const N8N_STATUS='https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api';
 async function syncMemberToSheets(member,action='add'){
   try{
     await fetch(N8N_SYNC_MEMBER,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({
-      action,member_id:member.id,name:member.name,contact:member.contact,address:member.address,
+      action:'sync-members',sub_action:action,member_id:member.id,name:member.name,contact:member.contact,address:member.address,
       area:member.area,assigned_officer:users.find(u=>u.id===member.assignedTo)?.name||'',
       account_type:member.type,schedule:member.sched,due_amount:member.dueAmount,
       loan_total:member.loanTotal,loan_balance:member.loanBal,source:member.source||'',
