@@ -1771,7 +1771,7 @@ function recordPayment(){
     if(m.loanBal===0&&oldBal>0&&m.loanTotal>0)setTimeout(()=>showLoanCompletion(m),500);
   }
   saveData();
-  const txPayload={...tx,member_id:m.id,loan_balance:m.loanBal,synced_at:new Date().toISOString()};
+  const txPayload={...tx,action:'sync-transaction',member_id:m.id,loan_balance:m.loanBal,synced_at:new Date().toISOString()};
   if(navigator.onLine){
    fetch('https://patriciatelen14.app.n8n.cloud/webhook/slcoop-api',{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(txPayload)})
     .then(()=>showToast('Payment synced to Google Sheets ✅'))
