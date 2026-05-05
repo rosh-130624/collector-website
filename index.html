@@ -1269,8 +1269,8 @@ function processLoan(appId,decision,requestedAmt,approvedAmt){
 }
 
 function syncLoanDecision(a,decision,requestedAmt,approvedAmt){
-  const payload={ref:a.id,status:decision,fname:a.fname,lname:a.lname,phone:a.phone,area:a.area||'',loantype:a.loantype,amount:requestedAmt,approved_amount:approvedAmt,date:new Date().toISOString().split('T')[0],processed_by:currentUser.name,processed_by_role:currentUser.role};
-  fetch(N8N_STATUS,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+  const payload={action:'update-status',ref:a.id,status:decision,fname:a.fname,lname:a.lname,phone:a.phone,area:a.area||'',loantype:a.loantype,amount:requestedAmt,approved_amount:approvedAmt,date:new Date().toISOString().split('T')[0],processed_by:currentUser.name,processed_by_role:currentUser.role};fname:a.fname,lname:a.lname,phone:a.phone,area:a.area||'',loantype:a.loantype,amount:requestedAmt,approved_amount:approvedAmt,date:new Date().toISOString().split('T')[0],processed_by:currentUser.name,processed_by_role:currentUser.role};
+  fetch(N8N_STATUS,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)})
   .then(()=>showToast('Decision synced to Google Sheets ✅'))
   .catch(err=>{console.warn('n8n sync error:',err);});
 }
