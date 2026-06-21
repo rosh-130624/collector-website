@@ -1046,7 +1046,7 @@ async function fetchAndMergeApplications(){
       id:row['Reference']||row.Reference||'',
       fname:(row['First Name']||row['First_Name']||'').split(' ')[0]||'',
       lname:row['Last Name']||row['Last_Name']||'',
-      phone:row['Phone']||'',address:row['Address']||'',area:row['Area']||'',
+      phone:String(row['Phone']||''),address:row['Address']||'',area:row['Area']||'',
       loantype:row['Loan Type']||row['Loan_Type']||'',amount:Number(row['Amount'])||0,
       purpose:row['Purpose']||'',income:Number(row['Monthly Income']||row['Income'])||0,
       payment:row['Payment Schedule']||row['Payment_Schedule']||'',
