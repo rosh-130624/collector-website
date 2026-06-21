@@ -1233,6 +1233,23 @@ function processLoan(appId,decision,requestedAmt,approvedAmt){
   const a=applications.find(x=>x.id===appId);if(!a)return;
   const role=currentUser.role;
 
+  if(decision==='rejected'){
+    a.status='rejected';
+    a.managerDecision='rejected';
+    a.managerDecisionBy=currentUser.name;
+    saveData();
+    syncLoanDecision(a,decision,requestedAmt,approvedAmt);
+    showToast('Application rejected.');
+    renderApplications();renderDashboard();
+    return;
+  }
+
+  if(role==='manager'||role==='admin'){
+    // ...everything below this stays exactly the same as before
+  function processLoan(appId,decision,requestedAmt,approvedAmt){
+  const a=applications.find(x=>x.id===appId);if(!a)return;
+  const role=currentUser.role;
+
   if(role==='manager'||role==='admin'){
     // Manager acts → save decision → notify supervisor
     a.managerDecision=decision;
