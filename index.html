@@ -1034,7 +1034,11 @@ async function syncAllMembersToSheets(){
 
 async function fetchAndMergeApplications(){
   try{
-    const r=await fetch(N8N_GET_APPS,{method:'GET',headers:{'Content-Type':'application/json'}});
+    const r=await fetch(N8N_GET_APPS,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify({action:'get-applications'})
+    });
     if(!r.ok)throw new Error('Failed');
     const sheetData=await r.json();
     if(!Array.isArray(sheetData)||!sheetData.length)return;
@@ -1061,7 +1065,7 @@ async function fetchAndMergeApplications(){
     if(added>0){saveData();showToast(added+' new application(s) synced from Google Sheets!');}
   }catch(e){console.warn('Could not sync from Google Sheets:',e);}
 }
-
+  
 // ─── SKELETON LOADING FOR APPS ───
 function renderAppsSkeleton(){
   const el=document.getElementById('tab-applications');
