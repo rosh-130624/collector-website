@@ -1123,9 +1123,11 @@ function getWorkflowStatus(a){
 function renderApplications(highlightId){
   const va=getVisibleApplications();
   const el=document.getElementById('tab-applications');
+  const q=(document.getElementById('app-sq')||{value:''}).value.toLowerCase();
+  const f=(document.getElementById('app-sf')||{value:''}).value;
   el.innerHTML=`
   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-    <input type="text" placeholder="Search by name or reference no..." id="app-sq" oninput="renderApplications()" style="flex:1;min-width:140px">
+    <input type="text" placeholder="Search by name or reference no..." id="app-sq" oninput="renderApplications()" style="flex:1;min-width:140px" value="${q}">
     <select id="app-sf" onchange="renderApplications()" style="width:145px">
       <option value="">All Status</option><option value="new">New</option><option value="pending">Pending</option>
       <option value="approved">Approved</option><option value="partial-approval">Partial</option><option value="rejected">Rejected</option>
@@ -1134,8 +1136,6 @@ function renderApplications(highlightId){
     <button class="btn success" onclick="exportAppsExcel()">Export Excel</button>
   </div>
   <div id="apps-list"></div>`;
-  const q=(document.getElementById('app-sq')||{value:''}).value.toLowerCase();
-  const f=(document.getElementById('app-sf')||{value:''}).value;
   document.getElementById('app-sf').value=f;
   const filtered=[...va].reverse().filter(a=>{
     const nameMatch=(a.fname+' '+a.lname).toLowerCase().includes(q);
@@ -1246,38 +1246,27 @@ function processLoan(appId,decision,requestedAmt,approvedAmt){
   }
 
   if(role==='manager'||role==='admin'){
-    // ...everything below this stays exactly the same as before
-  function processLoan(appId,decision,requestedAmt,approvedAmt){
-  const a=applications.find(x=>x.id===appId);if(!a)return;
-  const role=currentUser.role;
-
-  if(role==='manager'||role==='admin'){
-    // Manager acts → save decision → notify supervisor
     a.managerDecision=decision;
     a.managerDecisionBy=currentUser.name;
     a.approved_amount=approvedAmt;
     a.status='pending-sup';
     saveData();
-    // Notify all supervisors
     const supervisors=users.filter(u=>u.role==='supervisor'||u.role==='admin'||u.role==='manager');
     const decisionLabel=decision==='approved'?`approved for ${fmt(requestedAmt)}`:decision==='partial-approval'?`partially approved (${fmt(approvedAmt)} of ${fmt(requestedAmt)})`:'rejected';
     supervisors.filter(u=>u.id!==currentUser.id).forEach(sup=>{
       const msg=`Manager ${currentUser.name} has ${decisionLabel} the loan of ${a.fname} ${a.lname} (Ref: ${a.id}). Please review and notify collector.`;
       addNotification(sup.id,'loan-decision',msg,'applications',appId);
     });
-    // Sync to Google Sheets
     syncLoanDecision(a,decision,requestedAmt,approvedAmt);
     showToast('Decision saved! Supervisor has been notified via bell. ✅');
     renderApplications();renderDashboard();
 
   }else if(role==='supervisor'){
-    // Supervisor confirms → notify account officer
     a.supervisorDecision=decision;
     a.supervisorDecisionBy=currentUser.name;
     a.approved_amount=approvedAmt;
     a.status='pending-officer';
     saveData();
-    // Notify assigned account officer
     const officer=users.find(u=>u.id===a.assignedTo);
     if(officer){
       const decisionLabel=decision==='approved'?`APPROVED for ${fmt(requestedAmt)}`:decision==='partial-approval'?`PARTIALLY APPROVED for ${fmt(approvedAmt)}`:'REJECTED';
@@ -1289,7 +1278,7 @@ function processLoan(appId,decision,requestedAmt,approvedAmt){
     renderApplications();
   }
 }
-
+  
 function syncLoanDecision(a,decision,requestedAmt,approvedAmt){
 const payload={action:'update-status',ref:a.id,status:decision,fname:a.fname,lname:a.lname,phone:a.phone,area:a.area||'',loantype:a.loantype,amount:requestedAmt,approved_amount:approvedAmt,date:new Date().toISOString().split('T')[0],processed_by:currentUser.name,processed_by_role:currentUser.role};  fetch(N8N_STATUS,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)})
   .then(()=>showToast('Decision synced to Google Sheets ✅'))
@@ -1846,22 +1835,24 @@ function copyText(text){if(navigator.clipboard){navigator.clipboard.writeText(te
 function renderHistory(){
   const vm=getVisibleMembers();
   const el=document.getElementById('tab-history');
-  el.innerHTML=`
-  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-    <input type="text" placeholder="Search member, ID or ref..." id="hq" oninput="renderHistory()" style="flex:1;min-width:120px">
-    <select id="hf" onchange="renderHistory()" style="width:120px"><option value="">All Types</option><option value="loan">Loan</option><option value="savings">Savings</option><option value="penalty">Penalty</option></select>
-    ${isSupOrAbove()?`<select id="ha" onchange="renderHistory()" style="width:130px"><option value="">All Areas</option>${AREAS.map(a=>`<option value="${a}">${a}</option>`).join('')}</select>`:''}
-    <input type="date" id="hd-from" onchange="renderHistory()" style="width:130px">
-    <input type="date" id="hd-to" onchange="renderHistory()" style="width:130px">
-    <button class="btn success" onclick="exportHistoryExcel()">Export Excel</button>
-  </div>
-  <div id="history-total" style="margin-bottom:8px"></div>
-  <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table><thead><tr><th>Ref</th><th>Member</th><th>Area</th><th>Type</th><th>Amount</th><th>Date</th><th>Collector</th><th></th></tr></thead><tbody id="htbody"></tbody></table></div></div>`;
   const q=(document.getElementById('hq')||{value:''}).value.toLowerCase();
   const f=(document.getElementById('hf')||{value:''}).value;
   const fa=(document.getElementById('ha')||{value:''}).value;
   const dFrom=(document.getElementById('hd-from')||{value:''}).value;
   const dTo=(document.getElementById('hd-to')||{value:''}).value;
+  el.innerHTML=`
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+    <input type="text" placeholder="Search member, ID or ref..." id="hq" oninput="renderHistory()" style="flex:1;min-width:120px" value="${q}">
+    <select id="hf" onchange="renderHistory()" style="width:120px"><option value="">All Types</option><option value="loan">Loan</option><option value="savings">Savings</option><option value="penalty">Penalty</option></select>
+    ${isSupOrAbove()?`<select id="ha" onchange="renderHistory()" style="width:130px"><option value="">All Areas</option>${AREAS.map(a=>`<option value="${a}">${a}</option>`).join('')}</select>`:''}
+    <input type="date" id="hd-from" onchange="renderHistory()" style="width:130px" value="${dFrom}">
+    <input type="date" id="hd-to" onchange="renderHistory()" style="width:130px" value="${dTo}">
+    <button class="btn success" onclick="exportHistoryExcel()">Export Excel</button>
+  </div>
+  <div id="history-total" style="margin-bottom:8px"></div>
+  <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto"><table><thead><tr><th>Ref</th><th>Member</th><th>Area</th><th>Type</th><th>Amount</th><th>Date</th><th>Collector</th><th></th></tr></thead><tbody id="htbody"></tbody></table></div></div>`;
+  document.getElementById('hf').value=f;
+  if(document.getElementById('ha'))document.getElementById('ha').value=fa;
   const tx=[...transactions].reverse().filter(t=>{
     const m=vm.find(x=>x.id===t.memberId);
     if(!m)return false;
