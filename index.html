@@ -1141,14 +1141,21 @@ async function fetchAndMergeApplications(){
     })).filter(a=>a.id);
     let added=0;
     sheetsApps.forEach(sa=>{
-      const existing=applications.find(a=>a.id===sa.id);
-      if(!existing){applications.push(sa);added++;}
-      else{
-        existing.status=sa.status;
-        existing.approved_amount=sa.approved_amount;
-        if(!existing.assignedTo)existing.assignedTo=sa.assignedTo;
-      }
+  const existing=applications.find(a=>a.id===sa.id);
+  if(!existing){
+    applications.push(sa);added++;
+    const recipients=users.filter(u=>u.role==='manager'||u.role==='supervisor'||u.role==='admin');
+    const typeLabel=sa.applicant_type==='reloan'?'Re-loan':'New';
+    recipients.forEach(u=>{
+      addNotification(u.id,'new-application',`${typeLabel} application from ${sa.fname} ${sa.lname} (Ref: ${sa.id}) for ${fmt(sa.amount)} — awaiting Manager decision.`,'applications',sa.id);
     });
+  }
+  else{
+    existing.status=sa.status;
+    existing.approved_amount=sa.approved_amount;
+    if(!existing.assignedTo)existing.assignedTo=sa.assignedTo;
+  }
+});
     if(added>0){saveData();showToast(added+' new application(s) synced from Google Sheets!');}
   }catch(e){console.warn('Could not sync from Google Sheets:',e);}
 }
@@ -1218,17 +1225,46 @@ function renderApplications(highlightId){
     <select id="app-sf" onchange="renderApplications()" style="width:145px">
       <option value="">All Status</option><option value="new">New</option><option value="pending">Pending</option>
       <option value="approved">Approved</option><option value="partial-approval">Partial</option><option value="rejected">Rejected</option>
-      <option value="pending-sup">Pending Supervisor</option><option value="pending-officer">Pending Officer SMS</option>
-    </select>
+      <option value="pending-sup">Pending Supervisor</option><option value="pending-officer">Pending Officer SMS</option><option value="converted">Converted to Member</option></select>
     <button class="btn success" onclick="exportAppsExcel()">Export Excel</button>
   </div>
   <div id="apps-list"></div>`;
   document.getElementById('app-sf').value=f;
-  const filtered=[...va].reverse().filter(a=>{
-    const nameMatch=(a.fname+' '+a.lname).toLowerCase().includes(q);
-    const refMatch=a.id.toLowerCase().includes(q);
-    return(nameMatch||refMatch)&&(!f||a.status===f);
-  });
+  function markOfficerSmsSent(appId){
+  const a=applications.find(x=>x.id===appId);if(!a)return;
+  a.officerSmsSent=true;
+  a.status=a.supervisorDecision==='approved'?'approved':a.supervisorDecision==='partial-approval'?'partial-approval':'rejected';
+
+  let balanceMsg='';
+  const existingMember=members.find(m=>m.contact&&m.contact.replace(/\D/g,'')===a.phone.replace(/\D/g,''));
+  if(a.supervisorDecision==='approved'||a.supervisorDecision==='partial-approval'){
+    if(existingMember){
+      const amt=Number(a.approved_amount)||0;
+      if(amt>0){
+        const oldBal=existingMember.loanBal||0;
+        const oldTotal=existingMember.loanTotal||0;
+        if(oldBal>0){existingMember.loanTotal=oldTotal+amt;existingMember.loanBal=oldBal+amt;}
+        else{existingMember.loanTotal=amt;existingMember.loanBal=amt;}
+        if(existingMember.type==='savings')existingMember.type='both';
+        if(!existingMember.auditTrail)existingMember.auditTrail=[];
+        existingMember.auditTrail.unshift({field:'Loan Balance (Re-loan)',oldVal:fmt(oldBal),newVal:fmt(existingMember.loanBal),by:'System (Officer: '+currentUser.name+')',date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})});
+        if(!existingMember.commHistory)existingMember.commHistory=[];
+        existingMember.commHistory.unshift({type:'loan',msg:`New loan of ${fmt(amt)} approved (Ref: ${a.id}). Balance updated to ${fmt(existingMember.loanBal)}.`,date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),author:currentUser.name});
+        syncMemberToSheets(existingMember,'update');
+        balanceMsg=` ${existingMember.name}'s balance updated (+${fmt(amt)}).`;
+      }
+    }
+  } else if(a.supervisorDecision==='rejected'){
+    if(existingMember){
+      if(!existingMember.commHistory)existingMember.commHistory=[];
+      existingMember.commHistory.unshift({type:'other',msg:`Applied for a ${a.loantype} of ${fmt(a.amount)} (Ref: ${a.id}) — application was rejected.`,date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),author:currentUser.name});
+    }
+  }
+
+  saveData();
+  showToast('SMS marked as sent!'+balanceMsg+' ✅');
+  setTimeout(()=>renderApplications(),300);
+}
   document.getElementById('apps-list').innerHTML=filtered.length?filtered.map(a=>{
     const role=currentUser.role;
     const canManagerAct=(role==='manager'||role==='admin')&&!a.managerDecision;
@@ -1400,20 +1436,15 @@ function markOfficerSmsSent(appId){
   a.status=a.supervisorDecision==='approved'?'approved':a.supervisorDecision==='partial-approval'?'partial-approval':'rejected';
 
   let balanceMsg='';
+  const existingMember=members.find(m=>m.contact&&m.contact.replace(/\D/g,'')===a.phone.replace(/\D/g,''));
   if(a.supervisorDecision==='approved'||a.supervisorDecision==='partial-approval'){
-    const existingMember=members.find(m=>m.contact&&m.contact.replace(/\D/g,'')===a.phone.replace(/\D/g,''));
     if(existingMember){
       const amt=Number(a.approved_amount)||0;
       if(amt>0){
         const oldBal=existingMember.loanBal||0;
         const oldTotal=existingMember.loanTotal||0;
-        if(oldBal>0){
-          existingMember.loanTotal=oldTotal+amt;
-          existingMember.loanBal=oldBal+amt;
-        } else {
-          existingMember.loanTotal=amt;
-          existingMember.loanBal=amt;
-        }
+        if(oldBal>0){existingMember.loanTotal=oldTotal+amt;existingMember.loanBal=oldBal+amt;}
+        else{existingMember.loanTotal=amt;existingMember.loanBal=amt;}
         if(existingMember.type==='savings')existingMember.type='both';
         if(!existingMember.auditTrail)existingMember.auditTrail=[];
         existingMember.auditTrail.unshift({field:'Loan Balance (Re-loan)',oldVal:fmt(oldBal),newVal:fmt(existingMember.loanBal),by:'System (Officer: '+currentUser.name+')',date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})});
@@ -1423,13 +1454,18 @@ function markOfficerSmsSent(appId){
         balanceMsg=` ${existingMember.name}'s balance updated (+${fmt(amt)}).`;
       }
     }
+  } else if(a.supervisorDecision==='rejected'){
+    if(existingMember){
+      if(!existingMember.commHistory)existingMember.commHistory=[];
+      existingMember.commHistory.unshift({type:'other',msg:`Applied for a ${a.loantype} of ${fmt(a.amount)} (Ref: ${a.id}) — application was rejected.`,date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),author:currentUser.name});
+    }
   }
 
   saveData();
   showToast('SMS marked as sent!'+balanceMsg+' ✅');
   setTimeout(()=>renderApplications(),300);
 }
-
+  
 function buildDecisionSms(a,status,req,app){
   const name=a.fname+' '+a.lname;const coop=settings.coopName;
   if(status==='approved')return settings.smsApproved.replace('{name}',name).replace('{ref}',a.id).replace('{amount}',Number(req).toLocaleString('en-PH',{minimumFractionDigits:2})).replace('{coop}',coop);
@@ -1816,7 +1852,14 @@ function saveMember(appId){
     source:isOfficer&&existing?existing.source:document.getElementById('m-source').value
   };
   if(editingMemberId){const idx=members.findIndex(m=>m.id===editingMemberId);members[idx]=data;showToast('Member updated!');syncMemberToSheets(data,'update');}
-  else{members.push(data);showToast('Member registered!');syncMemberToSheets(data,'add');}
+ else{
+  members.push(data);showToast('Member registered!');syncMemberToSheets(data,'add');
+  if(appId){
+    const a=applications.find(x=>x.id===appId);
+    if(a){a.convertedToMemberId=id;a.member_id_ref=id;}
+    showConvertedConfirmation(appId,id,name);
+  }
+}
   saveData();switchTab('members');
 }
 
