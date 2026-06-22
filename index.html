@@ -1054,13 +1054,18 @@ async function fetchAndMergeApplications(){
       status:row['Status']||'new',approved_amount:Number(row['Approved Amount']||row['Approved_Amount'])||0,
       applicant_type:row['Applicant Type']||row['Applicant_Type']||'new',
       member_id_ref:row['Member ID Ref']||row['Member_ID_Ref']||'',time:row['Time']||'',
+      assignedTo:users.find(u=>u.role==='officer'&&u.area===(row['Area']||''))?.id||'',
       managerDecision:null,supervisorDecision:null,officerSmsSent:false
     })).filter(a=>a.id);
     let added=0;
     sheetsApps.forEach(sa=>{
       const existing=applications.find(a=>a.id===sa.id);
       if(!existing){applications.push(sa);added++;}
-      else{existing.status=sa.status;existing.approved_amount=sa.approved_amount;}
+      else{
+        existing.status=sa.status;
+        existing.approved_amount=sa.approved_amount;
+        if(!existing.assignedTo)existing.assignedTo=sa.assignedTo;
+      }
     });
     if(added>0){saveData();showToast(added+' new application(s) synced from Google Sheets!');}
   }catch(e){console.warn('Could not sync from Google Sheets:',e);}
