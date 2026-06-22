@@ -1208,7 +1208,7 @@ function renderApplications(highlightId){
         <div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:8px">🔍 Your action required as Supervisor:</div>
         <div style="background:var(--gp);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:11px;color:var(--green)">Manager's decision: <b>${a.managerDecision==='approved'?'Full Approval':a.managerDecision==='partial-approval'?'Partial — '+fmt(a.approved_amount):a.managerDecision}</b> by ${a.managerDecisionBy||'Manager'}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn sm green" onclick="processLoan('${a.id}','approved',${a.amount},${a.approved_amount||a.amount})">✅ Confirm &amp; Notify Officer</button>
+         <button class="btn sm green" onclick="processLoan('${a.id}','${a.managerDecision}',${a.amount},${a.approved_amount||a.amount})">✅ Confirm &amp; Notify Officer</button>
           <button class="btn sm warn" onclick="showPartialInput('${a.id}',${a.amount})">⚡ Adjust &amp; Confirm</button>
           <button class="btn sm danger" onclick="processLoan('${a.id}','rejected',${a.amount},0)">❌ Reject</button>
         </div>
