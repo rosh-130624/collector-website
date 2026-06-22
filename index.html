@@ -1000,10 +1000,92 @@ function saveRoute(){saveData();showToast('Route order saved! ✅');}
 function markVisited(mId){visitedToday[mId]=true;saveData();showToast('Marked as visited!');renderRoute();}
   // ─── WALK-IN REGISTRATION ───
 function showWalkIn(){
-  renderAddMember(null,true);
+  renderWalkInChoice();
   ['tab-dashboard','tab-applications','tab-members','tab-collect','tab-history','tab-report','tab-transfers','tab-users','tab-settings'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
   document.getElementById('tab-add-member').style.display='';
   document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+}
+
+function renderWalkInChoice(){
+  document.getElementById('tab-add-member').innerHTML=`
+  <div class="card">
+    <div style="background:var(--gp);border:1.5px solid var(--gm);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:700">👤 Walk-in Registration</div>
+    <div class="card-title" style="margin-bottom:14px">Is this member new or existing?</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn primary" style="flex:1;padding:16px" onclick="renderAddMember(null,true)">🆕 New Member<div style="font-size:10px;font-weight:400;margin-top:4px;opacity:.8">Register a brand new member with their first loan</div></button>
+      <button class="btn info" style="flex:1;padding:16px" onclick="renderWalkInReloanSearch()">🔄 Existing Member (Re-loan)<div style="font-size:10px;font-weight:400;margin-top:4px;opacity:.8">Add a new loan to an existing member's account</div></button>
+    </div>
+    <div class="btn-row"><button class="btn" onclick="switchTab('members')">Cancel</button></div>
+  </div>`;
+}
+
+function renderWalkInReloanSearch(){
+  document.getElementById('tab-add-member').innerHTML=`
+  <div class="card">
+    <div style="background:#e8f0fa;border:1.5px solid #b8cce8;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--blue);font-weight:700">🔄 Existing Member Re-loan</div>
+    <div class="card-title" style="margin-bottom:14px">Search for the member</div>
+    <input type="text" id="wr-search" placeholder="Search by name, Member ID, or phone..." oninput="renderWalkInReloanResults()" style="margin-bottom:12px">
+    <div id="wr-results"></div>
+    <div class="btn-row"><button class="btn" onclick="showWalkIn()">← Back</button></div>
+  </div>`;
+  document.getElementById('wr-search').focus();
+}
+
+function renderWalkInReloanResults(){
+  const q=(document.getElementById('wr-search')||{value:''}).value.toLowerCase().trim();
+  const el=document.getElementById('wr-results');
+  if(!q){el.innerHTML='';return;}
+  const matches=members.filter(m=>m.name.toLowerCase().includes(q)||m.id.toLowerCase().includes(q)||(m.contact||'').replace(/\D/g,'').includes(q.replace(/\D/g,''))).slice(0,8);
+  el.innerHTML=matches.length?matches.map(m=>`
+    <div class="sb" style="cursor:pointer" onclick="renderWalkInReloanForm('${m.id}')">
+      <div><div style="font-weight:700">${m.name}</div><div style="font-size:10px;color:#888">${m.id} · ${m.contact} · <span class="area-pill">${m.area}</span></div></div>
+      <div style="text-align:right;font-size:11px;color:#888">Balance: <b>${m.loanBal>0?fmt(m.loanBal):'₱0.00'}</b></div>
+    </div>`).join(''):'<div class="empty">No matching members found.</div>';
+}
+
+function renderWalkInReloanForm(mId){
+  const m=members.find(x=>x.id===mId);if(!m)return;
+  document.getElementById('tab-add-member').innerHTML=`
+  <div class="card">
+    <div style="background:#e8f0fa;border:1.5px solid #b8cce8;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--blue);font-weight:700">🔄 New Loan for Existing Member</div>
+    <div class="card-title" style="margin-bottom:14px">${m.name} <span style="font-size:11px;color:#888;font-weight:400">(${m.id})</span></div>
+    <div class="info-grid" style="margin-bottom:16px">
+      <div class="lbl">Area</div><div class="val">${m.area}</div>
+      <div class="lbl">Phone</div><div class="val">${m.contact}</div>
+      <div class="lbl">Current Balance</div><div class="val">${m.loanBal>0?fmt(m.loanBal):'₱0.00 (fully paid)'}</div>
+    </div>
+    <div class="row2">
+      <div><div class="fl">New Loan Amount (₱)</div><input type="number" id="wr-amt" placeholder="Enter amount"></div>
+      <div><div class="fl">Collection Schedule</div><select id="wr-sched"><option value="daily" ${m.sched==='daily'?'selected':''}>Daily</option><option value="weekly" ${m.sched==='weekly'?'selected':''}>Weekly</option><option value="twice-a-month" ${m.sched==='twice-a-month'?'selected':''}>Twice a Month</option><option value="monthly" ${m.sched==='monthly'?'selected':''}>Monthly</option></select></div>
+    </div>
+    <div style="margin-bottom:12px"><div class="fl">Amount Due / Period (₱)</div><input type="number" id="wr-due" value="${m.dueAmount||''}" placeholder="Due amount per period"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="renderWalkInReloanSearch()">← Back</button>
+      <button class="btn primary" onclick="submitWalkInReloan('${m.id}')">Add New Loan</button>
+    </div>
+  </div>`;
+}
+
+function submitWalkInReloan(mId){
+  const m=members.find(x=>x.id===mId);if(!m)return;
+  const amt=Number(document.getElementById('wr-amt').value);
+  const due=Number(document.getElementById('wr-due').value)||m.dueAmount||0;
+  const sched=document.getElementById('wr-sched').value;
+  if(!amt||amt<=0){showToast('Enter a valid loan amount.');return;}
+  const oldBal=m.loanBal||0;
+  const oldTotal=m.loanTotal||0;
+  if(oldBal>0){m.loanTotal=oldTotal+amt;m.loanBal=oldBal+amt;}
+  else{m.loanTotal=amt;m.loanBal=amt;}
+  m.dueAmount=due;m.sched=sched;
+  if(m.type==='savings')m.type='both';
+  if(!m.auditTrail)m.auditTrail=[];
+  m.auditTrail.unshift({field:'Loan Balance (Walk-in Re-loan)',oldVal:fmt(oldBal),newVal:fmt(m.loanBal),by:currentUser.name,date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})});
+  if(!m.commHistory)m.commHistory=[];
+  m.commHistory.unshift({type:'loan',msg:`New walk-in loan of ${fmt(amt)} added. Balance updated to ${fmt(m.loanBal)}.`,date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),author:currentUser.name});
+  saveData();
+  syncMemberToSheets(m,'update');
+  showToast(`✅ New loan added! ${m.name}'s balance updated.`);
+  switchTab('members');
 }
 
 // ─── N8N ENDPOINTS ───
@@ -1673,7 +1755,7 @@ function renderAddMember(mId,isWalkIn=false,fromApp=null){
   const title=isWalkIn?'Walk-in Member Registration':m?'Edit Member':fromApp?'Add Member from Application':'New Member Registration';
   const defArea=fromApp?fromApp.area:m?m.area:currentUser.role==='officer'?currentUser.area:AREAS[0];
   const defOfficer=fromApp?users.find(u=>u.role==='officer'&&u.area===fromApp.area)?.id||'':m?m.assignedTo:currentUser.role==='officer'?currentUser.id:'';
-  const isOfficer=currentUser.role==='officer';
+  const isOfficer=currentUser.role==='officer'&&!isWalkIn;
   const readonlyIfOfficer=isOfficer?'readonly style="background:#f5f5f3;color:#aaa;cursor:not-allowed"':'';
   const disabledIfOfficer=isOfficer?'disabled style="background:#f5f5f3;color:#aaa;cursor:not-allowed"':'';
   document.getElementById('tab-add-member').innerHTML=`
