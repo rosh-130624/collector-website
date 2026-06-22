@@ -1239,7 +1239,7 @@ function processLoan(appId,decision,requestedAmt,approvedAmt){
   const a=applications.find(x=>x.id===appId);if(!a)return;
   const role=currentUser.role;
 
-   if(role==='manager'||role==='admin'){
+  if(role==='manager'||role==='admin'){
     a.managerDecision=decision;
     a.managerDecisionBy=currentUser.name;
     a.approved_amount=approvedAmt;
