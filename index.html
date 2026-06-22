@@ -1316,8 +1316,35 @@ function markOfficerSmsSent(appId){
   const a=applications.find(x=>x.id===appId);if(!a)return;
   a.officerSmsSent=true;
   a.status=a.supervisorDecision==='approved'?'approved':a.supervisorDecision==='partial-approval'?'partial-approval':'rejected';
+
+  let balanceMsg='';
+  if(a.supervisorDecision==='approved'||a.supervisorDecision==='partial-approval'){
+    const existingMember=members.find(m=>m.contact&&m.contact.replace(/\D/g,'')===a.phone.replace(/\D/g,''));
+    if(existingMember){
+      const amt=Number(a.approved_amount)||0;
+      if(amt>0){
+        const oldBal=existingMember.loanBal||0;
+        const oldTotal=existingMember.loanTotal||0;
+        if(oldBal>0){
+          existingMember.loanTotal=oldTotal+amt;
+          existingMember.loanBal=oldBal+amt;
+        } else {
+          existingMember.loanTotal=amt;
+          existingMember.loanBal=amt;
+        }
+        if(existingMember.type==='savings')existingMember.type='both';
+        if(!existingMember.auditTrail)existingMember.auditTrail=[];
+        existingMember.auditTrail.unshift({field:'Loan Balance (Re-loan)',oldVal:fmt(oldBal),newVal:fmt(existingMember.loanBal),by:'System (Officer: '+currentUser.name+')',date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})});
+        if(!existingMember.commHistory)existingMember.commHistory=[];
+        existingMember.commHistory.unshift({type:'loan',msg:`New loan of ${fmt(amt)} approved (Ref: ${a.id}). Balance updated to ${fmt(existingMember.loanBal)}.`,date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),author:currentUser.name});
+        syncMemberToSheets(existingMember,'update');
+        balanceMsg=` ${existingMember.name}'s balance updated (+${fmt(amt)}).`;
+      }
+    }
+  }
+
   saveData();
-  showToast('SMS marked as sent! Application updated. ✅');
+  showToast('SMS marked as sent!'+balanceMsg+' ✅');
   setTimeout(()=>renderApplications(),300);
 }
 
