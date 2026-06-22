@@ -1123,11 +1123,9 @@ function getWorkflowStatus(a){
 function renderApplications(highlightId){
   const va=getVisibleApplications();
   const el=document.getElementById('tab-applications');
-  const q=(document.getElementById('app-sq')||{value:''}).value.toLowerCase();
-  const f=(document.getElementById('app-sf')||{value:''}).value;
   el.innerHTML=`
   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-    <input type="text" placeholder="Search by name or reference no..." id="app-sq" oninput="renderApplications()" style="flex:1;min-width:140px" value="${q}">
+    <input type="text" placeholder="Search by name or reference no..." id="app-sq" oninput="renderApplications()" style="flex:1;min-width:140px">
     <select id="app-sf" onchange="renderApplications()" style="width:145px">
       <option value="">All Status</option><option value="new">New</option><option value="pending">Pending</option>
       <option value="approved">Approved</option><option value="partial-approval">Partial</option><option value="rejected">Rejected</option>
@@ -1136,6 +1134,8 @@ function renderApplications(highlightId){
     <button class="btn success" onclick="exportAppsExcel()">Export Excel</button>
   </div>
   <div id="apps-list"></div>`;
+  const q=(document.getElementById('app-sq')||{value:''}).value.toLowerCase();
+  const f=(document.getElementById('app-sf')||{value:''}).value;
   document.getElementById('app-sf').value=f;
   const filtered=[...va].reverse().filter(a=>{
     const nameMatch=(a.fname+' '+a.lname).toLowerCase().includes(q);
