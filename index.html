@@ -1316,40 +1316,6 @@ function renderApplications(highlightId){
   if(highlightId){const e=document.getElementById('appcard-'+highlightId);if(e)e.scrollIntoView({behavior:'smooth',block:'center'});}
 }
 
-function markOfficerSmsSent(appId){
-  const a=applications.find(x=>x.id===appId);if(!a)return;
-  a.officerSmsSent=true;
-  a.status=a.supervisorDecision==='approved'?'approved':a.supervisorDecision==='partial-approval'?'partial-approval':'rejected';
-  let balanceMsg='';
-  const existingMember=members.find(m=>m.contact&&m.contact.replace(/\D/g,'')===a.phone.replace(/\D/g,''));
-  if(a.supervisorDecision==='approved'||a.supervisorDecision==='partial-approval'){
-    if(existingMember){
-      const amt=Number(a.approved_amount)||0;
-      if(amt>0){
-        const oldBal=existingMember.loanBal||0;
-        const oldTotal=existingMember.loanTotal||0;
-        if(oldBal>0){existingMember.loanTotal=oldTotal+amt;existingMember.loanBal=oldBal+amt;}
-        else{existingMember.loanTotal=amt;existingMember.loanBal=amt;}
-        if(existingMember.type==='savings')existingMember.type='both';
-        if(!existingMember.auditTrail)existingMember.auditTrail=[];
-        existingMember.auditTrail.unshift({field:'Loan Balance (Re-loan)',oldVal:fmt(oldBal),newVal:fmt(existingMember.loanBal),by:'System (Officer: '+currentUser.name+')',date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})});
-        if(!existingMember.commHistory)existingMember.commHistory=[];
-        existingMember.commHistory.unshift({type:'loan',msg:`New loan of ${fmt(amt)} approved (Ref: ${a.id}). Balance updated to ${fmt(existingMember.loanBal)}.`,date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),author:currentUser.name});
-        syncMemberToSheets(existingMember,'update');
-        balanceMsg=` ${existingMember.name}'s balance updated (+${fmt(amt)}).`;
-      }
-    }
-  } else if(a.supervisorDecision==='rejected'){
-    if(existingMember){
-      if(!existingMember.commHistory)existingMember.commHistory=[];
-      existingMember.commHistory.unshift({type:'other',msg:`Applied for a ${a.loantype} of ${fmt(a.amount)} (Ref: ${a.id}) — application was rejected.`,date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),author:currentUser.name});
-    }
-  }
-  saveData();
-  showToast('SMS marked as sent!'+balanceMsg+' ✅');
-  setTimeout(()=>renderApplications(),300);
-}
-
 function showPartialInput(appId,reqAmt){document.getElementById('partial-input-'+appId).style.display='';}
 function processPartial(appId,requestedAmt){const approvedAmt=Number(document.getElementById('partial-amt-'+appId).value);if(!approvedAmt||approvedAmt<=0){showToast('Enter a valid amount.');return;}if(approvedAmt>=requestedAmt){showToast('Partial must be less than requested.');return;}processLoan(appId,'partial-approval',requestedAmt,approvedAmt);}
 
@@ -1474,7 +1440,19 @@ function buildDecisionSms(a,status,req,app){
   return'';
 }
 
-function convertToMember(appId){
+function showConvertedConfirmation(appId,memberId,memberName){
+  const popup=document.createElement('div');
+  popup.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px';
+  popup.innerHTML=`<div style="background:#fff;border-radius:16px;padding:28px;max-width:400px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.2)">
+    <div style="font-size:40px;margin-bottom:10px">✅</div>
+    <div style="font-size:17px;font-weight:800;margin-bottom:6px">Converted to Member!</div>
+    <div style="font-size:13px;color:#888;margin-bottom:20px">Application <b>${appId}</b> has been registered as <b>${memberName}</b> (${memberId}). It's now tucked away from the Loan Applications list — use the "Converted to Member" filter to find it later.</div>
+    <button class="btn primary" onclick="this.closest('[style*=fixed]').remove()">Got it</button>
+  </div>`;
+  document.body.appendChild(popup);
+}
+  
+  function convertToMember(appId){
   const a=applications.find(x=>x.id===appId);if(!a)return;
   renderAddMember(null,false,a);
   ['tab-dashboard','tab-applications','tab-members','tab-collect','tab-history','tab-report','tab-transfers','tab-users','tab-settings'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
