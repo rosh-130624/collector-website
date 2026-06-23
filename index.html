@@ -1230,11 +1230,98 @@ function renderApplications(highlightId){
   </div>
   <div id="apps-list"></div>`;
   document.getElementById('app-sf').value=f;
-  function markOfficerSmsSent(appId){
+  const filtered=[...va].reverse().filter(a=>{
+    const nameMatch=(a.fname+' '+a.lname).toLowerCase().includes(q);
+    const refMatch=a.id.toLowerCase().includes(q);
+    if(f==='converted')return(nameMatch||refMatch)&&a.convertedToMemberId;
+    if(a.convertedToMemberId)return false;
+    return(nameMatch||refMatch)&&(!f||a.status===f);
+  });
+  document.getElementById('apps-list').innerHTML=filtered.length?filtered.map(a=>{
+    const role=currentUser.role;
+    const canManagerAct=(role==='manager'||role==='admin')&&!a.managerDecision;
+    const canSupAct=role==='supervisor'&&a.managerDecision&&!a.supervisorDecision;
+    const canOfficerAct=role==='officer'&&a.supervisorDecision&&!a.officerSmsSent;
+    return`
+    <div class="app-card ${a.status==='new'?'is-new':''}" id="appcard-${a.id}">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div>
+          <div style="font-weight:700;font-size:14px">${a.fname} ${a.lname}${getMemberTypeBadge(a)}</div>
+          <div style="font-size:11px;color:#888;margin-top:3px">
+            <b style="color:var(--black)">${a.id}</b> · ${a.phone} · ${a.date}
+            ${a.member_id_ref?`· Member ID: <b>${a.member_id_ref}</b>`:''}
+            ${getProcessingTimeBadge(a.date)}
+          </div>
+          <span class="area-pill" style="margin-top:5px;display:inline-block">${a.area}</span>
+        </div>
+        <div style="text-align:right">
+          <span class="badge ${a.status}">${a.status==='partial-approval'?'Partial':a.status==='pending-sup'?'Pending Supervisor':a.status==='pending-officer'?'Pending SMS':a.status.charAt(0).toUpperCase()+a.status.slice(1)}</span>
+          <span class="badge loan" style="margin-left:4px">${a.loantype}</span>
+          <div style="font-weight:800;font-size:15px;color:var(--green);margin-top:4px">${fmt(a.amount)}</div>
+          ${a.approved_amount>0?`<div style="font-size:11px;color:var(--amber)">Approved: ${fmt(a.approved_amount)}</div>`:''}
+        </div>
+      </div>
+      <div class="info-grid" style="margin-bottom:10px">
+        <div class="lbl">Contact</div><div class="val">${a.phone}</div>
+        <div class="lbl">Address</div><div class="val">${a.address}</div>
+        <div class="lbl">Purpose</div><div class="val">${a.purpose}</div>
+        <div class="lbl">Monthly Income</div><div class="val">${fmt(a.income)}</div>
+        <div class="lbl">Payment Preference</div><div class="val">${a.payment}</div>
+        ${a.time?`<div class="lbl">Time Submitted</div><div class="val">${a.time}</div>`:''}
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Approval Workflow</div>
+        ${getWorkflowStatus(a)}
+      </div>
+      <div style="border-top:1px solid var(--gray2);padding-top:10px">
+        ${canManagerAct?`
+        <div style="font-size:11px;color:var(--amber);font-weight:700;margin-bottom:8px">👔 Your action required as Manager:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          <button class="btn sm green" onclick="processLoan('${a.id}','approved',${a.amount},${a.amount})">✅ Approve Full</button>
+          <button class="btn sm warn" onclick="showPartialInput('${a.id}',${a.amount})">⚡ Partial Approval</button>
+          <button class="btn sm danger" onclick="processLoan('${a.id}','rejected',${a.amount},0)">❌ Reject</button>
+          <button class="btn sm info" onclick="convertToMember('${a.id}')">+ Add as Member</button>
+        </div>
+        <div id="partial-input-${a.id}" style="display:none;margin-top:8px">
+          <div class="fl">Approved amount (₱)</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="number" id="partial-amt-${a.id}" placeholder="Enter approved amount" style="max-width:200px">
+            <button class="btn sm green" onclick="processPartial('${a.id}',${a.amount})">Confirm</button>
+            <button class="btn sm" onclick="document.getElementById('partial-input-${a.id}').style.display='none'">Cancel</button>
+          </div>
+        </div>`
+        :canSupAct?`
+        <div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:8px">🔍 Your action required as Supervisor:</div>
+        <div style="background:var(--gp);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:11px;color:var(--green)">Manager's decision: <b>${a.managerDecision==='approved'?'Full Approval':a.managerDecision==='partial-approval'?'Partial — '+fmt(a.approved_amount):a.managerDecision}</b> by ${a.managerDecisionBy||'Manager'}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn sm green" onclick="processLoan('${a.id}','${a.managerDecision}',${a.amount},${a.approved_amount||a.amount})">✅ Confirm &amp; Notify Officer</button>
+          <button class="btn sm warn" onclick="showPartialInput('${a.id}',${a.amount})">⚡ Adjust &amp; Confirm</button>
+          <button class="btn sm danger" onclick="processLoan('${a.id}','rejected',${a.amount},0)">❌ Reject</button>
+        </div>
+        <div id="partial-input-${a.id}" style="display:none;margin-top:8px">
+          <div class="fl">Adjusted approved amount (₱)</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="number" id="partial-amt-${a.id}" placeholder="Enter approved amount" style="max-width:200px">
+            <button class="btn sm green" onclick="processPartial('${a.id}',${a.amount})">Confirm</button>
+            <button class="btn sm" onclick="document.getElementById('partial-input-${a.id}').style.display='none'">Cancel</button>
+          </div>
+        </div>`
+        :canOfficerAct?`
+        <div style="font-size:11px;color:var(--blue);font-weight:700;margin-bottom:8px">📱 Your action required: Send SMS to member</div>
+        <div style="background:#e8f0fa;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:11px;color:var(--blue)">Supervisor confirmed: <b>${a.supervisorDecision==='approved'?'APPROVED':a.supervisorDecision==='partial-approval'?'PARTIALLY APPROVED ('+fmt(a.approved_amount)+')':'REJECTED'}</b></div>
+        <button class="btn sm info" onclick="showOfficerSmsComposer('${a.id}')">📤 Open SMS Composer &amp; Send to Member</button>`
+        :`<div style="font-size:11px;color:#aaa">${a.officerSmsSent?'✅ SMS sent to member. Process complete.':a.status==='approved'||a.status==='rejected'||a.status==='partial-approval'?'Decision recorded.':'Awaiting action from the appropriate role.'}</div>`}
+        ${isSupOrAbove()?`<div style="margin-top:8px"><button class="btn sm info" onclick="convertToMember('${a.id}')">+ Add as Member</button></div>`:''}
+      </div>
+    </div>`;
+  }).join(''):'<div class="empty">No applications found.</div>';
+  if(highlightId){const e=document.getElementById('appcard-'+highlightId);if(e)e.scrollIntoView({behavior:'smooth',block:'center'});}
+}
+
+function markOfficerSmsSent(appId){
   const a=applications.find(x=>x.id===appId);if(!a)return;
   a.officerSmsSent=true;
   a.status=a.supervisorDecision==='approved'?'approved':a.supervisorDecision==='partial-approval'?'partial-approval':'rejected';
-
   let balanceMsg='';
   const existingMember=members.find(m=>m.contact&&m.contact.replace(/\D/g,'')===a.phone.replace(/\D/g,''));
   if(a.supervisorDecision==='approved'||a.supervisorDecision==='partial-approval'){
@@ -1260,12 +1347,11 @@ function renderApplications(highlightId){
       existingMember.commHistory.unshift({type:'other',msg:`Applied for a ${a.loantype} of ${fmt(a.amount)} (Ref: ${a.id}) — application was rejected.`,date:todayStr,time:new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),author:currentUser.name});
     }
   }
-
   saveData();
   showToast('SMS marked as sent!'+balanceMsg+' ✅');
   setTimeout(()=>renderApplications(),300);
 }
- 
+
 function showPartialInput(appId,reqAmt){document.getElementById('partial-input-'+appId).style.display='';}
 function processPartial(appId,requestedAmt){const approvedAmt=Number(document.getElementById('partial-amt-'+appId).value);if(!approvedAmt||approvedAmt<=0){showToast('Enter a valid amount.');return;}if(approvedAmt>=requestedAmt){showToast('Partial must be less than requested.');return;}processLoan(appId,'partial-approval',requestedAmt,approvedAmt);}
 
