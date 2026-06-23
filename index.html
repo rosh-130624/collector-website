@@ -1151,10 +1151,8 @@ async function fetchAndMergeApplications(){
     });
   }
   else{
-    existing.status=sa.status;
-    existing.approved_amount=sa.approved_amount;
-    if(!existing.assignedTo)existing.assignedTo=sa.assignedTo;
-  }
+  if(!existing.assignedTo)existing.assignedTo=sa.assignedTo;
+}
 });
     if(added>0){saveData();showToast(added+' new application(s) synced from Google Sheets!');}
   }catch(e){console.warn('Could not sync from Google Sheets:',e);}
